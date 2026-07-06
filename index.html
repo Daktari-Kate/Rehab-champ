@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Rehab">
+<meta name="theme-color" content="#534AB7">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Rehab Champ</title>
+<style>
+  :root {
+    --bg: #faf9f6; --card: #ffffff; --border: #e5e2da;
+    --text: #1a1a1a; --muted: #6b6a66; --faint: #9b9a94;
+    --accent: #534AB7; --accent-soft: #EEEDFE;
+    --green: #0F6E56; --green-soft: #E1F5EE;
+    --amber: #854F0B; --amber-soft: #FAEEDA;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg); color: var(--text);
+    max-width: 480px; margin: 0 auto;
+    padding: 16px 16px 90px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 { font-size: 20px; font-weight: 600; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+  h3 { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 18px 0 8px; }
+  .row { display: flex; justify-content: space-between; align-items: center; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .faint { color: var(--faint); font-size: 12px; }
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 4px 12px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+  }
+  .card.current { border: 2px solid var(--accent); }
+  .exercise {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 4px; border: none; background: none; width: 100%;
+    font-size: 15px; text-align: left; cursor: pointer; color: var(--text);
+  }
+  .exercise + .exercise { border-top: 1px solid var(--border); }
+  .tick {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border); display: flex;
+    align-items: center; justify-content: center;
+    font-size: 14px; color: transparent; transition: all .15s;
+  }
+  .exercise.done .tick { background: var(--green); border-color: var(--green); color: #fff; }
+  .exercise.done .name { text-decoration: line-through; color: var(--muted); }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 3px 8px;
+    border-radius: 999px; background: var(--green-soft); color: var(--green);
+  }
+  .badge.amber { background: var(--amber-soft); color: var(--amber); }
+  .slider-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+  .slider-row label { font-size: 13px; color: var(--muted); width: 64px; }
+  .slider-row input { flex: 1; accent-color: var(--accent); }
+  .slider-row output { font-size: 14px; font-weight: 600; width: 40px; text-align: right; }
+  .btn {
+    display: block; width: 100%; padding: 12px; margin-top: 8px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--card); font-size: 15px; font-weight: 500;
+    cursor: pointer; color: var(--text);
+  }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.small { width: auto; padding: 8px 14px; font-size: 13px; margin-top: 10px; }
+  .btn-quiet {
+    background: none; border: none; color: var(--muted);
+    font-size: 13px; cursor: pointer; padding: 4px;
+  }
+  input[type="number"], input[type="date"], input[type="text"], select, textarea {
+    width: 100%; padding: 12px; font-size: 17px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--card); color: var(--text); font-family: inherit;
+  }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  ul.compact { margin: 6px 0 0 18px; font-size: 13px; color: var(--muted); }
+  ul.compact li { margin-bottom: 3px; }
+  .heat-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 8px; }
+  .heat-head {
+    font-size: 10px; font-weight: 600; color: var(--faint);
+    text-align: center; padding-bottom: 2px;
+  }
+  .heat-cell {
+    aspect-ratio: 1; border-radius: 4px; background: #efede6;
+    font-size: 9px; color: var(--faint);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .heat-cell.rehab { background: #FAC775; color: #633806; }
+  .heat-cell.gym { background: #97C459; color: #fff; }
+  .heat-cell.pool { background: #B5D4F4; color: #0C447C; }
+  .heat-cell.gympool { background: linear-gradient(135deg, #97C459 50%, #B5D4F4 50%); color: #173404; }
+  .heat-cell.future { background: transparent; border: 1px dashed var(--border); }
+  .timeline-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .timeline-item:last-child { border-bottom: none; }
+  .timeline-date { font-size: 12px; color: var(--faint); width: 74px; flex-shrink: 0; }
+  .extra-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 4px; font-size: 14px;
+  }
+  .extra-row + .extra-row { border-top: 1px solid var(--border); }
+  .load-chip {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 999px;
+    padding: 3px 9px; margin-left: 8px; flex-shrink: 0;
+  }
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    max-width: 480px; margin: 0 auto;
+    display: flex; background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  }
+  nav button {
+    flex: 1; background: none; border: none; cursor: pointer;
+    font-size: 11px; color: var(--faint); font-weight: 500;
+  }
+  nav button.active { color: var(--accent); }
+  nav button .ico { display: block; font-size: 20px; margin-bottom: 2px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ==================== TODAY ==================== -->
+<section id="screen-today" class="screen active">
+  <div class="row">
+    <p class="muted" id="today-date"></p>
+    <p class="muted" id="today-postop"></p>
+  </div>
+  <div class="row" style="margin: 6px 0 10px;">
+    <span class="pill" id="today-phase"></span>
+    <button class="btn-quiet" onclick="showScreen('checkin')">🌙 Evening check-in</button>
+  </div>
+  <p class="muted" id="daily-msg" style="font-style: italic; margin-bottom: 16px;"></p>
+
+  <div class="card">
+    <h2>How's the leg?</h2>
+    <div class="slider-row">
+      <label for="pain">Pain</label>
+      <input type="range" id="pain" min="0" max="10" step="1" value="0"
+             oninput="saveSlider('pain', this.value)">
+      <output id="pain-out">0</output>
+    </div>
+    <div class="slider-row">
+      <label for="swelling">Swelling</label>
+      <input type="range" id="swelling" min="0" max="10" step="1" value="0"
+             oninput="saveSlider('swelling', this.value)">
+      <output id="swelling-out">0</output>
+    </div>
+    <p class="faint" id="pain-hint"></p>
+  </div>
+
+  <div id="sessions"></div>
+
+  <div id="extras-today"></div>
+  <button class="btn" onclick="showScreen('extra')">＋ Log extra session</button>
+
+  <div class="card row" style="margin-top: 12px;">
+    <p class="muted" id="today-progress">Today: —</p>
+    <span class="faint">📊</span>
+  </div>
+</section>
+
+<!-- ==================== EVENING CHECK-IN ==================== -->
+<section id="screen-checkin" class="screen">
+  <h1 style="margin-bottom: 4px;">Evening check-in</h1>
+  <p class="muted" style="margin-bottom: 20px;">End-of-day numbers. Private to this screen.</p>
+  <div class="card">
+    <div class="field">
+      <label for="steps">Steps today (from Oura)</label>
+      <input type="number" id="steps" inputmode="numeric" placeholder="e.g. 1840">
+    </div>
+    <div class="field">
+      <label for="weight">Body weight (kg)</label>
+      <input type="number" id="weight" inputmode="decimal" step="0.1" placeholder="e.g. 68.4">
+    </div>
+    <button class="btn primary" onclick="saveCheckin()">Save</button>
+    <p class="faint" id="checkin-status" style="text-align:center; margin-top:8px;"></p>
+  </div>
+  <button class="btn" onclick="showScreen('today')">Back to today</button>
+</section>
+
+<!-- ==================== EXTRA SESSION ==================== -->
+<section id="screen-extra" class="screen">
+  <h1 style="margin-bottom: 4px;">Log extra session</h1>
+  <p class="muted" style="margin-bottom: 20px;">Unplanned training counts too — it's part of your real load.</p>
+  <div class="card">
+    <div class="field">
+      <label for="extra-type">Type</label>
+      <select id="extra-type">
+        <option>Pool</option><option>Gym</option><option>Rehab</option>
+        <option>Cardio</option><option>Walk / hike</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="extra-duration">Duration (minutes)</label>
+      <input type="number" id="extra-duration" inputmode="numeric" placeholder="e.g. 30">
+    </div>
+    <div class="field">
+      <label for="extra-notes">Notes (optional)</label>
+      <input type="text" id="extra-notes" placeholder="e.g. easy swim, felt good">
+    </div>
+    <div class="field">
+      <label for="extra-pain">Pain during (0–10, optional)</label>
+      <input type="number" id="extra-pain" inputmode="numeric" min="0" max="10" placeholder="0">
+    </div>
+    <button class="btn primary" onclick="saveExtra()">Save session</button>
+  </div>
+  <button class="btn" onclick="showScreen('today')">Cancel</button>
+</section>
+
+<!-- ==================== PROGRAM ==================== -->
+<section id="screen-program" class="screen">
+  <h1 style="margin-bottom: 4px;">Program</h1>
+  <p class="muted" style="margin-bottom: 16px;">Draft — confirm every phase with your physio. Phase changes are your and your physio's decision, never automatic.</p>
+  <div id="phase-list"></div>
+</section>
+
+<!-- ==================== HISTORY ==================== -->
+<section id="screen-history" class="screen">
+  <h1 style="margin-bottom: 2px;">History</h1>
+  <p class="muted" id="history-postop" style="margin-bottom: 12px;"></p>
+  <div class="card">
+    <h2>This week</h2>
+    <p style="font-size: 24px; font-weight: 600; margin: 4px 0;" id="adherence-big">—</p>
+    <p class="muted" id="adherence-detail"></p>
+    <p class="faint" style="margin-top: 8px;">Adherence to home-exercise programs is one of the strongest predictors of rehab outcome. Extras add to your load but are never required.</p>
+  </div>
+  <div class="card">
+    <h2>Last 8 weeks</h2>
+    <div class="heat-grid" id="heat-grid"></div>
+    <p class="faint" style="margin-top: 8px;">🟩 gym · 🟦 pool · split = both · 🟧 rehab sets · extra sessions colour the day too</p>
+  </div>
+  <div class="card">
+    <h2>Key dates</h2>
+    <div id="timeline"></div>
+  </div>
+</section>
+
+<!-- ==================== SETTINGS ==================== -->
+<section id="screen-settings" class="screen">
+  <h1>Settings</h1>
+  <div class="card">
+    <div class="field">
+      <label for="surgery-date">Surgery date</label>
+      <input type="date" id="surgery-date" onchange="saveSurgeryDate(this.value)">
+    </div>
+    <p class="faint">All data is stored only on this device. Nothing is sent anywhere.</p>
+  </div>
+</section>
+
+<!-- ==================== NAV ==================== -->
+<nav>
+  <button id="nav-today" class="active" onclick="showScreen('today')"><span class="ico">🏠</span>Today</button>
+  <button id="nav-program" onclick="showScreen('program')"><span class="ico">📋</span>Program</button>
+  <button id="nav-history" onclick="showScreen('history')"><span class="ico">📅</span>History</button>
+  <button id="nav-settings" onclick="showScreen('settings')"><span class="ico">⚙️</span>Settings</button>
+</nav>
+
+<script>
+// ---------- Storage helpers (localStorage for now; IndexedDB upgrade planned) ----------
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem('rc_' + key); return v ? JSON.parse(v) : fallback; }
+    catch { return fallback; }
+  },
+  set(key, value) { localStorage.setItem('rc_' + key, JSON.stringify(value)); }
+};
+const dateKey = d => d.toISOString().slice(0, 10);
+const todayKey = () => dateKey(new Date());
+
+// ---------- Settings ----------
+const DEFAULT_SURGERY = '2026-06-26';
+function surgeryDate() { return store.get('surgery', DEFAULT_SURGERY); }
+function saveSurgeryDate(v) { if (v) { store.set('surgery', v); render(); } }
+
+// ---------- Program data (from 02-REHAB-PROGRAM.md — physio will edit) ----------
+// slot: morning | afternoon | bedtime | anytime
+// perWeek: planned completions per week (7 = daily, 0 = excluded from adherence)
+const SLOTS = [
+  { id: 'morning',   label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'anytime',   label: 'Anytime today' },
+  { id: 'bedtime',   label: 'Bedtime' },
+];
+
+const PROGRAM = [
+  {
+    num: 1, name: 'Protection', weeks: 'Weeks 0–2',
+    goals: 'Protect the repair, manage swelling, keep the rest of you strong — including the right leg, which carries elevated rupture risk and is the reference for all later symmetry tests.',
+    exit: ['Wound healed / sutures out', 'Surgeon clears progression'],
+    sessions: [
+      { id: 'p1-circ-am', icon: '🩺', name: 'Rehab — circulation & hips', slot: 'morning', freq: 'daily', perWeek: 7, items: [
+        { id: 'toes',   name: 'Toe wiggles', dose: '3 × 20' },
+        { id: 'slr',    name: 'Straight-leg raises', dose: '3 × 12' },
+        { id: 'hipabd', name: 'Side-lying hip abduction', dose: '3 × 12' },
+        { id: 'bridge', name: 'Glute bridges', dose: '3 × 15' },
+      ]},
+      { id: 'p1-gym', icon: '🏋️', name: 'Gym — upper body, core & right leg', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'db',      name: 'Seated dumbbell press', dose: '3 × 10', load: 'kg' },
+        { id: 'row',     name: 'Band rows', dose: '3 × 12', load: 'band' },
+        { id: 'deadbug', name: 'Dead bugs', dose: '3 × 10' },
+        { id: 'rcalf',   name: 'Right leg: standing calf raises (support as needed)', dose: '3 × 15', load: 'bw+' },
+        { id: 'rquad',   name: 'Right leg: seated leg extensions', dose: '3 × 12', load: 'kg' },
+      ]},
+      { id: 'p1-circ-pm', icon: '🌙', name: 'Circulation set', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
+        { id: 'toes2', name: 'Toe wiggles', dose: '3 × 20' },
+        { id: 'quads', name: 'Quad sets', dose: '3 × 10' },
+      ]},
+    ],
+  },
+  {
+    num: 2, name: 'Controlled mobilization', weeks: 'Weeks 2–6',
+    goals: 'Progress to full weight-bearing in boot, gentle motion, start calf activation. No passive stretching; dorsiflexion only to neutral.',
+    exit: ['Full weight-bearing in boot, comfortable', 'Minimal swelling', 'Surgeon clears boot weaning'],
+    sessions: [
+      { id: 'p2-rom-am', icon: '🩺', name: 'Ankle mobility & activation', slot: 'morning', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf',   name: 'Active plantarflexion', dose: '3 × 15' },
+        { id: 'df',   name: 'Dorsiflexion to neutral (knee bent)', dose: '3 × 10' },
+        { id: 'ie',   name: 'Gentle inversion/eversion', dose: '3 × 10' },
+        { id: 'iso',  name: 'Calf isometrics, submaximal', dose: '5 × 10s' },
+      ]},
+      { id: 'p2-rom-pm', icon: '☀️', name: 'Ankle mobility set 2', slot: 'afternoon', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf2',  name: 'Active plantarflexion', dose: '3 × 15' },
+        { id: 'iso2', name: 'Calf isometrics, submaximal', dose: '5 × 10s' },
+      ]},
+      { id: 'p2-hips', icon: '🦵', name: 'Hip, knee & core strength', slot: 'anytime', freq: 'daily', perWeek: 7, items: [
+        { id: 'slrw',   name: 'Straight-leg raises (add ankle weight)', dose: '3 × 12', load: 'kg' },
+        { id: 'bridge', name: 'Glute bridges', dose: '3 × 15' },
+        { id: 'clam',   name: 'Clamshells with band', dose: '3 × 15' },
+      ]},
+      { id: 'p2-pool', icon: '🏊', name: 'Pool (if surgeon approves wound immersion)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'swim', name: 'Swim with pull buoy — no wall push-off', dose: '20–30 min' },
+        { id: 'dwr',  name: 'Deep-water running with belt', dose: '10–15 min' },
+      ]},
+      { id: 'p2-gym', icon: '🏋️', name: 'Gym — upper body, core & right leg', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'db',    name: 'Seated dumbbell press', dose: '3 × 10', load: 'kg' },
+        { id: 'row',   name: 'Band or cable rows', dose: '3 × 12', load: 'band' },
+        { id: 'core',  name: 'Dead bugs / pallof press', dose: '3 × 10' },
+        { id: 'rcalf', name: 'Right leg: single-leg calf raises', dose: '3 × 15', load: 'bw+' },
+        { id: 'rquad', name: 'Right leg: leg extensions or step-ups', dose: '3 × 12', load: 'kg' },
+      ]},
+      { id: 'p2-rom-bed', icon: '🌙', name: 'Ankle mobility set 3', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf3', name: 'Active plantarflexion', dose: '3 × 15' },
+        { id: 'df3', name: 'Dorsiflexion to neutral (knee bent)', dose: '3 × 10' },
+      ]},
+    ],
+  },
+  {
+    num: 3, name: 'Early rehabilitation', weeks: 'Weeks 6–12',
+    goals: 'Wean boot → shoe with heel wedges, normalize walking, build calf strength. Still no passive calf stretching until week 12.',
+    exit: ['Normal walking in shoes on flat ground', 'Two-leg heel raise with good form', 'Pain & swelling controlled'],
+    sessions: [
+      { id: 'p3-gait', icon: '🚶', name: 'Gait & balance drills', slot: 'morning', freq: 'daily', perWeek: 7, items: [
+        { id: 'gait', name: 'Gait practice — short strides, even push-off', dose: '10 min' },
+        { id: 'sls',  name: 'Single-leg stance progression', dose: '3 × 30s' },
+      ]},
+      { id: 'p3-gym', icon: '🏋️', name: 'Gym — strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'seatedcalf', name: 'Seated calf raises', dose: '3 × 15', load: 'kg' },
+        { id: 'dlheel',     name: 'Two-leg heel raises (weight shifting left over time)', dose: '3 × 12', load: 'bw+' },
+        { id: 'rcalf',      name: 'Right leg: single-leg calf raises, loaded', dose: '3 × 12', load: 'bw+' },
+        { id: 'legpress',   name: 'Leg press calf pushes', dose: '3 × 12', load: 'kg' },
+        { id: 'squat',      name: 'Squats / step-ups within comfort', dose: '3 × 10', load: 'bw+' },
+        { id: 'upper',      name: 'Upper body block', dose: '20 min' },
+      ]},
+      { id: 'p3-pool', icon: '🏊', name: 'Pool — strength & gait', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'walk',   name: 'Chest-deep walking drills', dose: '10 min' },
+        { id: 'wheels', name: 'Heel raises in water', dose: '3 × 15' },
+        { id: 'aqua',   name: 'Aqua jogging', dose: '15–20 min' },
+      ]},
+      { id: 'p3-cardio', icon: '🚴', name: 'Cardio — stationary bike', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'bike', name: 'Bike (flat foot early in phase)', dose: '20–30 min' },
+      ]},
+      { id: 'p3-mob', icon: '🌙', name: 'Ankle mobility set', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
+        { id: 'arom', name: 'Active ankle ROM, all directions', dose: '3 × 15' },
+      ]},
+    ],
+  },
+  {
+    num: 4, name: 'Late rehabilitation', weeks: 'Weeks 12–24',
+    goals: 'Single-leg strength, then plyometrics, then running. Return-to-run is a criteria gate, not a date: ~10 full-range single-leg heel raises + good single-leg squat control.',
+    exit: ['Strength >70–80% of right leg', 'Running 20–30 min comfortably', 'Controlled jumping and landing'],
+    sessions: [
+      { id: 'p4-gym', icon: '🏋️', name: 'Gym — heavy calf & leg strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'slheel',  name: 'Single-leg heel raise progression (left)', dose: '4 × 8–12', load: 'bw+' },
+        { id: 'rmatch',  name: 'Right leg: match all single-leg work', dose: 'same sets' },
+        { id: 'soleus',  name: 'Seated soleus raises, loaded', dose: '4 × 12', load: 'kg' },
+        { id: 'split',   name: 'Split squats', dose: '3 × 10', load: 'bw+' },
+        { id: 'rdl',     name: 'Romanian deadlifts', dose: '3 × 10', load: 'kg' },
+        { id: 'upper',   name: 'Upper body block', dose: '20 min' },
+      ]},
+      { id: 'p4-plyo', icon: '⚡', name: 'Intro plyometrics (once cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'pogo',   name: 'Pogo hops — band-assisted → free', dose: '3 × 20' },
+        { id: 'ladder', name: 'Ladder drills', dose: '10 min' },
+        { id: 'box',    name: 'Low box step-and-drive', dose: '3 × 8' },
+      ]},
+      { id: 'p4-run', icon: '🏃', name: 'Run progression (criteria met + physio cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'wj', name: 'Walk-jog intervals', dose: 'per plan' },
+      ]},
+      { id: 'p4-bal', icon: '🧘', name: 'Balance & mobility micro-session', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
+        { id: 'balance', name: 'Single-leg balance, unstable / eyes closed', dose: '5 min' },
+      ]},
+    ],
+  },
+  {
+    num: 5, name: 'Return to sport', weeks: 'Months 6–12',
+    goals: 'Power, reactive strength, sport-specific work. Taekwondo is the final gate — explosive push-off and jumping kicks off the left leg come last (10–12+ months).',
+    exit: ['Heel-raise endurance >90% of right leg', 'Hop & drop-jump asymmetry <10%', 'Physio clearance for full sparring'],
+    sessions: [
+      { id: 'p5-gym', icon: '🏋️', name: 'Gym — strength maintenance (both legs)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'slheel', name: 'Single-leg heel raises, loaded (both legs)', dose: '4 × 10', load: 'bw+' },
+        { id: 'soleus', name: 'Seated soleus raises, heavy', dose: '4 × 10', load: 'kg' },
+        { id: 'lower',  name: 'Lower body compound block', dose: '30 min' },
+      ]},
+      { id: 'p5-plyo', icon: '⚡', name: 'Plyometrics & power', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+        { id: 'cmj',  name: 'Countermovement & box jumps', dose: '4 × 6' },
+        { id: 'drop', name: 'Drop jumps → single-leg variants', dose: '3 × 5' },
+        { id: 'cod',  name: 'Change-of-direction & cutting drills', dose: '15 min' },
+      ]},
+      { id: 'p5-run', icon: '🏃', name: 'Running', slot: 'anytime', freq: '2–3×/week', perWeek: 2, items: [
+        { id: 'run', name: 'Volume → tempo → strides → sprints', dose: 'per plan' },
+      ]},
+      { id: 'p5-tkd', icon: '🥋', name: 'Taekwondo progression', slot: 'anytime', freq: 'per plan', perWeek: 0, items: [
+        { id: 'tech',  name: 'Technique-only drills', dose: 'stage 1' },
+        { id: 'bag',   name: 'Light bag work', dose: 'stage 2' },
+        { id: 'right', name: 'Jumping/spinning kicks off RIGHT leg', dose: 'stage 3' },
+        { id: 'left',  name: 'Explosive push-off & jumps off LEFT leg', dose: 'stage 4' },
+        { id: 'spar',  name: 'Controlled → full sparring', dose: 'stage 5' },
+      ]},
+    ],
+  },
+];
+
+// ---------- Derived values ----------
+function daysPostOp() {
+  return Math.floor((new Date() - new Date(surgeryDate())) / 86400000);
+}
+function estimatedPhaseNum() {
+  const week = daysPostOp() / 7;
+  if (week < 2) return 1;
+  if (week < 6) return 2;
+  if (week < 12) return 3;
+  if (week < 24) return 4;
+  return 5;
+}
+function currentPhaseNum() { return store.get('phase', estimatedPhaseNum()); }
+function currentPhase() { return PROGRAM.find(p => p.num === currentPhaseNum()); }
+function setPhase(num) {
+  if (confirm('Set Phase ' + num + ' as current?\n\nHas your physio agreed to this progression?')) {
+    store.set('phase', num);
+    const events = store.get('events', []);
+    events.push({ date: todayKey(), type: 'phase', num: num });
+    store.set('events', events);
+    render();
+    showScreen('today');
+  }
+}
+function sessionCompleteOn(dayKeyStr, session) {
+  const ticks = store.get('ticks_' + dayKeyStr, {});
+  return session.items.every(i => ticks[session.id + '.' + i.id]);
+}
+function ticksCountOn(dayKeyStr) {
+  const ticks = store.get('ticks_' + dayKeyStr, {});
+  return Object.values(ticks).filter(Boolean).length;
+}
+
+// ---------- Weekly adherence ----------
+function mondayOf(d) {
+  const x = new Date(d);
+  x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+  return x;
+}
+function weekAdherence() {
+  const ph = currentPhase();
+  const monday = mondayOf(new Date());
+  const daysElapsed = Math.floor((new Date() - monday) / 86400000) + 1;
+  let planned = 0, done = 0;
+  ph.sessions.forEach(s => {
+    if (!s.perWeek) return;
+    const target = s.perWeek === 7 ? daysElapsed : Math.min(s.perWeek, Math.round(s.perWeek * daysElapsed / 7) || 1);
+    let completions = 0;
+    for (let i = 0; i < daysElapsed; i++) {
+      const d = new Date(monday); d.setDate(d.getDate() + i);
+      if (sessionCompleteOn(dateKey(d), s)) completions++;
+    }
+    planned += target;
+    done += Math.min(completions, target);
+  });
+  return { planned, done, pct: planned ? Math.round(done / planned * 100) : 0 };
+}
+
+// ---------- Daily message (stable per day, random across days) ----------
+const MESSAGES = [
+  "Good morning, champion of the slow comeback.",
+  "Your tendon called. It says thanks for showing up.",
+  "Consistency beats intensity. Also, you look nice today.",
+  "You bring the reps, the collagen brings the fibres. Teamwork.",
+  "Heroes wear boots. At least for now.",
+  "Great to see you. The calf raises missed you.",
+  "Rome wasn't rebuilt in a day either.",
+  "Today's forecast: 100% chance of progress.",
+  "Somewhere, future-you just landed a jumping kick. Keep going.",
+  "Tendons heal at the speed of patience. You've got both.",
+  "Small ticks today, big kicks next year.",
+  "Achilles was a warrior. So are you — minus the fatal flaw. You have an app.",
+  "Every rep is a tiny promise to future-you.",
+  "The pool doesn't know it's rehab. It thinks you're just swimming.",
+  "Left leg's on sabbatical, but the committee still meets daily.",
+  "Boring exercises, spectacular results. That's the deal.",
+  "One day this will just be a great story at the dojang.",
+  "Show up. Tick boxes. Grow tendon. Repeat.",
+  "You're not slow, you're remodelling.",
+  "Nice to see you again. Your dedication is genuinely impressive.",
+  "Even your right leg is getting stronger out of solidarity.",
+  "Another page in the comeback story. You're writing it well.",
+];
+function dailyMessage() {
+  const k = todayKey();
+  let hash = 0;
+  for (let i = 0; i < k.length; i++) hash = (hash * 31 + k.charCodeAt(i)) >>> 0;
+  return MESSAGES[hash % MESSAGES.length];
+}
+
+// ---------- Rendering ----------
+function render() {
+  const d = new Date();
+  document.getElementById('today-date').textContent =
+    d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  document.getElementById('today-postop').textContent = 'Day ' + daysPostOp() + ' post-op';
+  const ph = currentPhase();
+  document.getElementById('today-phase').textContent = 'Phase ' + ph.num + ' · ' + ph.name;
+  document.getElementById('daily-msg').textContent = dailyMessage();
+
+  renderSessions(ph);
+  renderExtrasToday();
+  renderProgram();
+  renderHistory();
+  renderInputs();
+}
+
+function renderSessions(ph) {
+  const ticks = store.get('ticks_' + todayKey(), {});
+  const container = document.getElementById('sessions');
+  container.innerHTML = '';
+  let total = 0, done = 0;
+
+  SLOTS.forEach(slot => {
+    const sessions = ph.sessions.filter(s => s.slot === slot.id);
+    if (!sessions.length) return;
+    const header = document.createElement('h3');
+    header.textContent = slot.label;
+    container.appendChild(header);
+
+    sessions.forEach(session => {
+      const doneCount = session.items.filter(i => ticks[session.id + '.' + i.id]).length;
+      total += session.items.length; done += doneCount;
+      const card = document.createElement('div');
+      card.className = 'card';
+      const freqBadge = session.freq === 'daily'
+        ? '<span class="badge">' + doneCount + ' of ' + session.items.length + '</span>'
+        : '<span class="badge amber">' + session.freq + '</span>';
+      card.innerHTML = '<div class="row" style="margin-bottom:6px;">'
+        + '<h2 style="margin:0;">' + session.icon + ' ' + session.name + '</h2>'
+        + freqBadge + '</div>';
+      const loads = store.get('loads', {});
+      session.items.forEach(item => {
+        const key = session.id + '.' + item.id;
+        const btn = document.createElement('button');
+        btn.className = 'exercise' + (ticks[key] ? ' done' : '');
+        btn.innerHTML = '<span class="tick">✓</span>'
+          + '<span class="name">' + item.name + '</span>'
+          + '<span class="faint" style="margin-left:auto; padding-left:8px; white-space:nowrap;">' + item.dose + '</span>';
+        btn.onclick = () => toggleTick(key);
+        if (item.load) {
+          const chip = document.createElement('span');
+          chip.className = 'load-chip';
+          chip.textContent = loadLabel(item.load, loads[key]);
+          chip.onclick = ev => { ev.stopPropagation(); setLoad(key, item.name, item.load); };
+          btn.appendChild(chip);
+        }
+        card.appendChild(btn);
+      });
+      container.appendChild(card);
+    });
+  });
+
+  document.getElementById('today-progress').textContent =
+    'Today: ' + done + ' of ' + total + ' exercises done';
+}
+
+function renderExtrasToday() {
+  const extras = store.get('extras_' + todayKey(), []);
+  const container = document.getElementById('extras-today');
+  container.innerHTML = '';
+  if (!extras.length) return;
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<h2>✨ Extras today</h2>';
+  extras.forEach((e, idx) => {
+    const row = document.createElement('div');
+    row.className = 'extra-row';
+    row.innerHTML = '<span>' + e.type + ' · ' + (e.duration || '?') + ' min'
+      + (e.notes ? ' <span class="faint">— ' + e.notes + '</span>' : '') + '</span>';
+    const del = document.createElement('button');
+    del.className = 'btn-quiet';
+    del.textContent = '✕';
+    del.onclick = () => {
+      if (confirm('Remove this extra session?')) {
+        extras.splice(idx, 1);
+        store.set('extras_' + todayKey(), extras);
+        render();
+      }
+    };
+    row.appendChild(del);
+    card.appendChild(row);
+  });
+  container.appendChild(card);
+}
+
+function renderProgram() {
+  const cur = currentPhaseNum();
+  const container = document.getElementById('phase-list');
+  container.innerHTML = '';
+  PROGRAM.forEach(ph => {
+    const card = document.createElement('div');
+    card.className = 'card' + (ph.num === cur ? ' current' : '');
+    const badge = ph.num === cur ? '<span class="badge">Current</span>' : '';
+    const sessionsSummary = ph.sessions.map(s =>
+      '<li>' + s.icon + ' ' + s.name + ' — <em>' + s.freq + '</em></li>').join('');
+    const exitList = ph.exit.map(e => '<li>' + e + '</li>').join('');
+    card.innerHTML = '<div class="row">'
+      + '<h2 style="margin:0;">Phase ' + ph.num + ' · ' + ph.name + '</h2>' + badge + '</div>'
+      + '<p class="faint" style="margin-top:2px;">' + ph.weeks + '</p>'
+      + '<p class="muted" style="margin-top:8px;">' + ph.goals + '</p>'
+      + '<p class="muted" style="margin-top:10px; font-weight:600;">Sessions</p>'
+      + '<ul class="compact">' + sessionsSummary + '</ul>'
+      + '<p class="muted" style="margin-top:10px; font-weight:600;">Move on when</p>'
+      + '<ul class="compact">' + exitList + '</ul>';
+    if (ph.num !== cur) {
+      const btn = document.createElement('button');
+      btn.className = 'btn small';
+      btn.textContent = 'Set as current phase';
+      btn.onclick = () => setPhase(ph.num);
+      card.appendChild(btn);
+    }
+    container.appendChild(card);
+  });
+}
+
+function dayActivity(k) {
+  const ticks = store.get('ticks_' + k, {});
+  const keys = Object.keys(ticks).filter(key => ticks[key]);
+  let gym = keys.some(key => key.includes('-gym.'));
+  let pool = keys.some(key => key.includes('-pool.'));
+  const rehab = keys.length > 0;
+  const extras = store.get('extras_' + k, []);
+  let otherExtra = false;
+  extras.forEach(e => {
+    if (e.type === 'Gym') gym = true;
+    else if (e.type === 'Pool') pool = true;
+    else otherExtra = true;
+  });
+  return { gym, pool, rehab: rehab || otherExtra, n: keys.length + extras.length };
+}
+
+function renderHistory() {
+  const days = daysPostOp();
+  const w = Math.floor(days / 7), rem = days % 7;
+  document.getElementById('history-postop').textContent =
+    w + (w === 1 ? ' week' : ' weeks') + (rem ? ' + ' + rem + (rem === 1 ? ' day' : ' days') : '') + ' post-op';
+
+  const a = weekAdherence();
+  document.getElementById('adherence-big').textContent = a.pct + '%';
+  document.getElementById('adherence-detail').textContent =
+    a.done + ' of ' + a.planned + ' planned session-days so far this week';
+
+  const grid = document.getElementById('heat-grid');
+  grid.innerHTML = '';
+  ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach(init => {
+    const h = document.createElement('div');
+    h.className = 'heat-head';
+    h.textContent = init;
+    grid.appendChild(h);
+  });
+  const monday = mondayOf(new Date());
+  monday.setDate(monday.getDate() - 49);
+  for (let i = 0; i < 56; i++) {
+    const d = new Date(monday); d.setDate(d.getDate() + i);
+    const k = dateKey(d);
+    const cell = document.createElement('div');
+    const isFuture = d > new Date();
+    if (isFuture) {
+      cell.className = 'heat-cell future';
+    } else {
+      const act = dayActivity(k);
+      const type = act.gym && act.pool ? ' gympool'
+                 : act.gym ? ' gym'
+                 : act.pool ? ' pool'
+                 : act.rehab ? ' rehab' : '';
+      cell.className = 'heat-cell' + type;
+      cell.title = k + ': ' + act.n + ' activities';
+    }
+    cell.textContent = d.getDate();
+    grid.appendChild(cell);
+  }
+
+  const tl = document.getElementById('timeline');
+  tl.innerHTML = '';
+  const surgery = new Date(surgeryDate());
+  const weeksAt = s => {
+    const wk = Math.floor((new Date(s) - surgery) / (7 * 86400000));
+    return wk <= 0 ? 'Surgery' : 'Week ' + wk;
+  };
+  const items = [{ date: surgeryDate(), label: '🏥 Achilles repair — day zero' }];
+  store.get('events', []).forEach(e => {
+    if (e.type === 'phase') {
+      const ph = PROGRAM.find(p => p.num === e.num);
+      items.push({ date: e.date, label: '➡️ Advanced to Phase ' + e.num + ' · ' + (ph ? ph.name : '') });
+    }
+  });
+  items.sort((x, y) => x.date < y.date ? -1 : 1);
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'timeline-item';
+    row.innerHTML = '<span class="timeline-date">' + weeksAt(it.date) + '</span><span style="font-size:14px;">' + it.label + '</span>';
+    tl.appendChild(row);
+  });
+}
+
+function renderInputs() {
+  const sliders = store.get('sliders_' + todayKey(), { pain: 0, swelling: 0 });
+  ['pain', 'swelling'].forEach(k => {
+    document.getElementById(k).value = sliders[k];
+    document.getElementById(k + '-out').textContent = sliders[k];
+  });
+  document.getElementById('pain-hint').textContent =
+    sliders.pain > 5 ? '⚠️ Above 5/10 — reduce load today and see how it settles overnight.'
+                     : 'Rule of thumb: pain up to 5/10 is OK if it settles by morning.';
+  const checkin = store.get('checkin_' + todayKey(), {});
+  document.getElementById('steps').value = checkin.steps ?? '';
+  document.getElementById('weight').value = checkin.weight ?? '';
+  document.getElementById('surgery-date').value = surgeryDate();
+}
+
+// ---------- Actions ----------
+function loadLabel(type, v) {
+  if (type === 'band') return v || 'set band';
+  if (type === 'bw+') return v == null ? 'BW +?' : (v === 0 ? 'BW' : 'BW +' + v + ' kg');
+  return v != null ? v + ' kg' : 'set kg';
+}
+function setLoad(key, name, type) {
+  const loads = store.get('loads', {});
+  const current = loads[key];
+  let value;
+  if (type === 'band') {
+    const v = prompt('Band / resistance for:\n' + name + '\n(e.g. "red band", "heavy")', current || '');
+    if (v === null || v.trim() === '') return;
+    value = v.trim().slice(0, 20);
+  } else {
+    const msg = type === 'bw+'
+      ? 'Added weight in kg for:\n' + name + '\n(0 = bodyweight only)'
+      : 'Weight (kg) for:\n' + name;
+    const v = prompt(msg, current != null ? current : '');
+    if (v === null || v.trim() === '') return;
+    const n = Number(v);
+    if (isNaN(n) || n < 0) return;
+    value = n;
+  }
+  loads[key] = value;
+  store.set('loads', loads);
+  const log = store.get('loadlog_' + todayKey(), {});
+  log[key] = value;
+  store.set('loadlog_' + todayKey(), log);
+  render();
+}
+function toggleTick(key) {
+  const dayKey = 'ticks_' + todayKey();
+  const ticks = store.get(dayKey, {});
+  ticks[key] = !ticks[key];
+  store.set(dayKey, ticks);
+  render();
+}
+function saveSlider(name, value) {
+  const key = 'sliders_' + todayKey();
+  const s = store.get(key, { pain: 0, swelling: 0 });
+  s[name] = Number(value);
+  store.set(key, s);
+  document.getElementById(name + '-out').textContent = value;
+  if (name === 'pain') renderInputs();
+}
+function saveCheckin() {
+  const steps = document.getElementById('steps').value;
+  const weight = document.getElementById('weight').value;
+  store.set('checkin_' + todayKey(), {
+    steps: steps ? Number(steps) : null,
+    weight: weight ? Number(weight) : null,
+  });
+  document.getElementById('checkin-status').textContent = 'Saved ✓';
+  setTimeout(() => document.getElementById('checkin-status').textContent = '', 2000);
+}
+function saveExtra() {
+  const extras = store.get('extras_' + todayKey(), []);
+  extras.push({
+    type: document.getElementById('extra-type').value,
+    duration: Number(document.getElementById('extra-duration').value) || null,
+    notes: document.getElementById('extra-notes').value || null,
+    pain: document.getElementById('extra-pain').value !== '' ? Number(document.getElementById('extra-pain').value) : null,
+  });
+  store.set('extras_' + todayKey(), extras);
+  document.getElementById('extra-duration').value = '';
+  document.getElementById('extra-notes').value = '';
+  document.getElementById('extra-pain').value = '';
+  render();
+  showScreen('today');
+}
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  const nav = document.getElementById('nav-' + name);
+  if (nav) nav.classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+render();
+
+// Register the service worker (offline support). Only runs when hosted over
+// https — opening the file directly still works, just without offline caching.
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+</body>
+</html>
