@@ -115,6 +115,17 @@
     background: var(--accent-soft); border-radius: 999px;
     padding: 3px 9px; margin-left: 8px; flex-shrink: 0;
   }
+  .ms-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
+  .ms-row + .ms-row { border-top: 1px solid var(--border); }
+  .ms-tick {
+    width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;
+    border: 2px solid var(--border); background: none; cursor: pointer;
+    color: transparent; font-size: 14px; line-height: 1;
+  }
+  .ms-tick.done { background: var(--green); border-color: var(--green); color: #fff; }
+  .ms-label { flex: 1; font-size: 14px; }
+  .ms-label .faint { display: block; }
+  .ms-date { width: 140px; padding: 6px 8px; font-size: 13px; }
   nav {
     position: fixed; bottom: 0; left: 0; right: 0;
     max-width: 480px; margin: 0 auto;
@@ -245,6 +256,12 @@
     <p class="faint" style="margin-top: 8px;">🟩 gym · 🟦 pool · split = both · 🟧 rehab sets · extra sessions colour the day too</p>
   </div>
   <div class="card">
+    <h2>Milestones</h2>
+    <div id="milestones"></div>
+    <button class="btn small" onclick="addMilestone()">＋ Add milestone</button>
+    <p class="faint" style="margin-top:8px;">Targets are hopes, not schedules — edit them as your physio adjusts the plan.</p>
+  </div>
+  <div class="card">
     <h2>Key dates</h2>
     <div id="timeline"></div>
   </div>
@@ -279,7 +296,11 @@ const store = {
   },
   set(key, value) { localStorage.setItem('rc_' + key, JSON.stringify(value)); }
 };
-const dateKey = d => d.toISOString().slice(0, 10);
+// Date keys use LOCAL time, not UTC — otherwise evening entries in timezones
+// behind UTC get filed under tomorrow's date (a classic timezone bug).
+const dateKey = d => d.getFullYear() + '-'
+  + String(d.getMonth() + 1).padStart(2, '0') + '-'
+  + String(d.getDate()).padStart(2, '0');
 const todayKey = () => dateKey(new Date());
 
 // ---------- Settings ----------
@@ -327,35 +348,65 @@ const PROGRAM = [
     goals: 'Progress to full weight-bearing in boot, gentle motion, start calf activation. No passive stretching; dorsiflexion only to neutral.',
     exit: ['Full weight-bearing in boot, comfortable', 'Minimal swelling', 'Surgeon clears boot weaning'],
     sessions: [
-      { id: 'p2-rom-am', icon: '🩺', name: 'Ankle mobility & activation', slot: 'morning', freq: 'daily', perWeek: 7, items: [
-        { id: 'pf',   name: 'Active plantarflexion', dose: '3 × 15' },
-        { id: 'df',   name: 'Dorsiflexion to neutral (knee bent)', dose: '3 × 10' },
-        { id: 'ie',   name: 'Gentle inversion/eversion', dose: '3 × 10' },
-        { id: 'iso',  name: 'Calf isometrics, submaximal', dose: '5 × 10s' },
+      { id: 'p2-rom-am', icon: '🩺', name: 'Ankle & body mobility — set 1', slot: 'morning', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf',    name: 'Active plantarflexion', dose: '3 × 10' },
+        { id: 'ie',    name: 'Ankle inversion/eversion', dose: '3 × 10' },
+        { id: 'neck',  name: 'Neck rotations', dose: '10 each way' },
+        { id: 'ubrot', name: 'Upper back: seated rotations', dose: '10 each side' },
+        { id: 'lback', name: 'Lower back: seated bends & arches', dose: '× 10' },
+        { id: 'glute', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'hstr',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
-      { id: 'p2-rom-pm', icon: '☀️', name: 'Ankle mobility set 2', slot: 'afternoon', freq: 'daily', perWeek: 7, items: [
-        { id: 'pf2',  name: 'Active plantarflexion', dose: '3 × 15' },
-        { id: 'iso2', name: 'Calf isometrics, submaximal', dose: '5 × 10s' },
+      { id: 'p2-rom-pm', icon: '☀️', name: 'Ankle & body mobility — set 2', slot: 'afternoon', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf2',    name: 'Active plantarflexion', dose: '3 × 10' },
+        { id: 'ie2',    name: 'Ankle inversion/eversion', dose: '3 × 10' },
+        { id: 'neck2',  name: 'Neck rotations', dose: '10 each way' },
+        { id: 'ubrot2', name: 'Upper back: seated rotations', dose: '10 each side' },
+        { id: 'lback2', name: 'Lower back: seated bends & arches', dose: '× 10' },
+        { id: 'glute2', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'hstr2',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
-      { id: 'p2-hips', icon: '🦵', name: 'Hip, knee & core strength', slot: 'anytime', freq: 'daily', perWeek: 7, items: [
-        { id: 'slrw',   name: 'Straight-leg raises (add ankle weight)', dose: '3 × 12', load: 'kg' },
-        { id: 'bridge', name: 'Glute bridges', dose: '3 × 15' },
-        { id: 'clam',   name: 'Clamshells with band', dose: '3 × 15' },
+      { id: 'p2-strength', icon: '🦵', name: 'Hip, knee & core strength', slot: 'anytime', freq: 'daily', perWeek: 7, items: [
+        { id: 'rcalf',    name: 'Standing on right leg: single-leg calf raises', dose: '3 × 10', load: 'bw+' },
+        { id: 'hipext',   name: 'Standing: hip extension', dose: '3 × 10' },
+        { id: 'hipabd',   name: 'Standing: hip abduction', dose: '3 × 10' },
+        { id: 'slsquat',  name: 'Standing: single-leg squat (right leg)', dose: '3 × 10', load: 'bw+' },
+        { id: 'bal',      name: 'Double-leg balance', dose: '3 × 30s' },
+        { id: 'clam',     name: 'Lying: clams (both sides)', dose: '3 × 10' },
+        { id: 'ham',      name: 'Lying: hamstring curls (both legs)', dose: '3 × 10' },
+        { id: 'hipflex',  name: 'Lying: hip flexion (both legs)', dose: '3 × 10' },
+        { id: 'knee',     name: 'Seated: knee extension (both legs)', dose: '3 × 10' },
+        { id: 'quadiso',  name: 'Quad isometrics', dose: '3 × 10' },
+        { id: 'leglower', name: 'Core: leg lowers', dose: '3 × 10' },
       ]},
-      { id: 'p2-pool', icon: '🏊', name: 'Pool (if surgeon approves wound immersion)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+      { id: 'p2-calfact', icon: '💪', name: 'Calf activation — only if you feel ready', slot: 'anytime', freq: 'daily', perWeek: 7, fromWeek: 4, items: [
+        { id: 'iso', name: 'Calf isometrics, submaximal', dose: '5 × 10s' },
+        { id: 'df',  name: 'Dorsiflexion to neutral (knee bent)', dose: '3 × 10' },
+      ]},
+      { id: 'p2-w5', icon: '🏋️', name: 'Functional strength — only if you feel ready', slot: 'anytime', freq: 'daily', perWeek: 7, fromWeek: 5, items: [
+        { id: 'squat',  name: 'Squats', dose: '3 × 10', load: 'bw+' },
+        { id: 'step',   name: 'Step-ups', dose: '3 × 10', load: 'bw+' },
+        { id: 'bike',   name: 'Stationary bike (wearing boot)', dose: '5–10 min' },
+        { id: 'feet',   name: 'Balance, feet together', dose: '3 × 30s' },
+        { id: 'bridge', name: 'Bridges — double leg → single leg (both sides)', dose: '3 × 10' },
+      ]},
+      { id: 'p2-pool', icon: '🏊', name: 'Pool (surgeon approves wound immersion)', slot: 'anytime', freq: '2×/week', perWeek: 2, fromWeek: 4, items: [
         { id: 'swim', name: 'Swim with pull buoy — no wall push-off', dose: '20–30 min' },
         { id: 'dwr',  name: 'Deep-water running with belt', dose: '10–15 min' },
       ]},
-      { id: 'p2-gym', icon: '🏋️', name: 'Gym — upper body, core & right leg', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
-        { id: 'db',    name: 'Seated dumbbell press', dose: '3 × 10', load: 'kg' },
-        { id: 'row',   name: 'Band or cable rows', dose: '3 × 12', load: 'band' },
-        { id: 'core',  name: 'Dead bugs / pallof press', dose: '3 × 10' },
-        { id: 'rcalf', name: 'Right leg: single-leg calf raises', dose: '3 × 15', load: 'bw+' },
-        { id: 'rquad', name: 'Right leg: leg extensions or step-ups', dose: '3 × 12', load: 'kg' },
+      { id: 'p2-gym', icon: '🏋️', name: 'Gym — upper body & core', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'db',   name: 'Seated dumbbell press', dose: '3 × 10', load: 'kg' },
+        { id: 'row',  name: 'Band or cable rows', dose: '3 × 12', load: 'band' },
+        { id: 'core', name: 'Dead bugs / pallof press', dose: '3 × 10' },
       ]},
-      { id: 'p2-rom-bed', icon: '🌙', name: 'Ankle mobility set 3', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
-        { id: 'pf3', name: 'Active plantarflexion', dose: '3 × 15' },
-        { id: 'df3', name: 'Dorsiflexion to neutral (knee bent)', dose: '3 × 10' },
+      { id: 'p2-rom-bed', icon: '🌙', name: 'Ankle & body mobility — set 3', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
+        { id: 'pf3',    name: 'Active plantarflexion', dose: '3 × 10' },
+        { id: 'ie3',    name: 'Ankle inversion/eversion', dose: '3 × 10' },
+        { id: 'neck3',  name: 'Neck rotations', dose: '10 each way' },
+        { id: 'ubrot3', name: 'Upper back: seated rotations', dose: '10 each side' },
+        { id: 'lback3', name: 'Lower back: seated bends & arches', dose: '× 10' },
+        { id: 'glute3', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'hstr3',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
     ],
   },
@@ -448,6 +499,7 @@ const PROGRAM = [
 function daysPostOp() {
   return Math.floor((new Date() - new Date(surgeryDate())) / 86400000);
 }
+function weekPostOp() { return Math.floor(daysPostOp() / 7) + 1; }
 function estimatedPhaseNum() {
   const week = daysPostOp() / 7;
   if (week < 2) return 1;
@@ -490,6 +542,7 @@ function weekAdherence() {
   let planned = 0, done = 0;
   ph.sessions.forEach(s => {
     if (!s.perWeek) return;
+    if (s.fromWeek && weekPostOp() < s.fromWeek) return;
     const target = s.perWeek === 7 ? daysElapsed : Math.min(s.perWeek, Math.round(s.perWeek * daysElapsed / 7) || 1);
     let completions = 0;
     for (let i = 0; i < daysElapsed; i++) {
@@ -534,6 +587,99 @@ function dailyMessage() {
   return MESSAGES[hash % MESSAGES.length];
 }
 
+// ---------- Milestones ----------
+function defaultMilestones() {
+  const s = new Date(surgeryDate());
+  const plus = days => { const d = new Date(s); d.setDate(d.getDate() + days); return dateKey(d); };
+  return [
+    { label: 'Move to boot (3 wedges)', target: plus(14), achieved: null },
+    { label: 'First swim (week 4)',     target: plus(21), achieved: null },
+    { label: 'Drop to 2 wedges',        target: plus(28), achieved: null },
+    { label: 'Drop to 1 wedge',         target: plus(42), achieved: null },
+    { label: 'Boot → shoes',            target: plus(56), achieved: null },
+  ];
+}
+function getMilestones() {
+  let m = store.get('milestones', null);
+  if (!m) { m = defaultMilestones(); store.set('milestones', m); }
+  return m;
+}
+function toggleMilestone(i) {
+  const m = getMilestones();
+  m[i].achieved = m[i].achieved ? null : todayKey();
+  store.set('milestones', m);
+  render();
+}
+function setMilestoneTarget(i, v) {
+  if (!v) return;
+  const m = getMilestones();
+  m[i].target = v;
+  store.set('milestones', m);
+  render();
+}
+function addMilestone() {
+  const label = prompt('Milestone name:');
+  if (!label || !label.trim()) return;
+  const target = prompt('Target date (YYYY-MM-DD), or leave blank:', '');
+  const m = getMilestones();
+  m.push({
+    label: label.trim().slice(0, 60),
+    target: target && !isNaN(new Date(target).getTime()) ? target : null,
+    achieved: null,
+  });
+  store.set('milestones', m);
+  render();
+}
+function deleteMilestone(i) {
+  if (!confirm('Delete this milestone?')) return;
+  const m = getMilestones();
+  m.splice(i, 1);
+  store.set('milestones', m);
+  render();
+}
+function renderMilestones() {
+  const container = document.getElementById('milestones');
+  container.innerHTML = '';
+  getMilestones().forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'ms-row';
+    const tick = document.createElement('button');
+    tick.className = 'ms-tick' + (m.achieved ? ' done' : '');
+    tick.textContent = '✓';
+    tick.onclick = () => toggleMilestone(i);
+    row.appendChild(tick);
+    const label = document.createElement('span');
+    label.className = 'ms-label';
+    if (m.achieved) {
+      label.innerHTML = '<s>' + m.label + '</s><span class="faint">achieved ' + m.achieved + '</span>';
+    } else {
+      let sub = '';
+      if (m.target) {
+        const dd = Math.ceil((new Date(m.target + 'T12:00') - new Date()) / 86400000);
+        sub = dd > 0 ? 'in ' + dd + (dd === 1 ? ' day' : ' days')
+            : dd === 0 ? 'today!'
+            : 'target was ' + (-dd) + (dd === -1 ? ' day' : ' days') + ' ago — update?';
+      }
+      label.innerHTML = m.label + (sub ? '<span class="faint">' + sub + '</span>' : '');
+    }
+    row.appendChild(label);
+    if (!m.achieved) {
+      const input = document.createElement('input');
+      input.type = 'date';
+      input.className = 'ms-date';
+      input.value = m.target || '';
+      input.onchange = () => setMilestoneTarget(i, input.value);
+      row.appendChild(input);
+    }
+    const del = document.createElement('button');
+    del.className = 'btn-quiet';
+    del.textContent = '✕';
+    del.onclick = () => deleteMilestone(i);
+    row.appendChild(del);
+    container.appendChild(row);
+  });
+}
+
 // ---------- Rendering ----------
 function render() {
   const d = new Date();
@@ -547,6 +693,7 @@ function render() {
   renderSessions(ph);
   renderExtrasToday();
   renderProgram();
+  renderMilestones();
   renderHistory();
   renderInputs();
 }
@@ -558,7 +705,8 @@ function renderSessions(ph) {
   let total = 0, done = 0;
 
   SLOTS.forEach(slot => {
-    const sessions = ph.sessions.filter(s => s.slot === slot.id);
+    const sessions = ph.sessions.filter(s =>
+      s.slot === slot.id && (!s.fromWeek || weekPostOp() >= s.fromWeek));
     if (!sessions.length) return;
     const header = document.createElement('h3');
     header.textContent = slot.label;
@@ -639,7 +787,7 @@ function renderProgram() {
     card.className = 'card' + (ph.num === cur ? ' current' : '');
     const badge = ph.num === cur ? '<span class="badge">Current</span>' : '';
     const sessionsSummary = ph.sessions.map(s =>
-      '<li>' + s.icon + ' ' + s.name + ' — <em>' + s.freq + '</em></li>').join('');
+      '<li>' + s.icon + ' ' + s.name + ' — <em>' + s.freq + (s.fromWeek ? ' · from week ' + s.fromWeek : '') + '</em></li>').join('');
     const exitList = ph.exit.map(e => '<li>' + e + '</li>').join('');
     card.innerHTML = '<div class="row">'
       + '<h2 style="margin:0;">Phase ' + ph.num + ' · ' + ph.name + '</h2>' + badge + '</div>'
@@ -730,6 +878,9 @@ function renderHistory() {
       const ph = PROGRAM.find(p => p.num === e.num);
       items.push({ date: e.date, label: '➡️ Advanced to Phase ' + e.num + ' · ' + (ph ? ph.name : '') });
     }
+  });
+  getMilestones().forEach(m => {
+    if (m.achieved) items.push({ date: m.achieved, label: '🎯 ' + m.label });
   });
   items.sort((x, y) => x.date < y.date ? -1 : 1);
   items.forEach(it => {
@@ -836,6 +987,13 @@ function showScreen(name) {
 }
 
 render();
+
+// iOS keeps the app frozen in memory overnight; re-render whenever it wakes
+// so "today" is always actually today.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) render();
+});
+window.addEventListener('pageshow', () => render());
 
 // Register the service worker (offline support). Only runs when hosted over
 // https — opening the file directly still works, just without offline caching.
