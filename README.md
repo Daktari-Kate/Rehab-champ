@@ -4,10 +4,11 @@ A private companion app for recovering from an Achilles tendon rupture. It tells
 
 > We're sorry you need this app. We know it's a long, slow recovery, and faithful rehab makes all the difference. You've got one shot at getting this right, so Rehab Champ is here to cheer you on.
 
-<!-- Edit this file on github.com and drag Rehab-Champ-intro-for-GitHub.mp4 here to embed the intro video. -->
-https://github.com/Daktari-Kate/Rehab-champ/blob/main/Rehab-Champ-intro-for-GitHub.mp4
+<video src="https://github.com/Daktari-Kate/Rehab-champ/raw/main/Rehab-Champ-intro-for-GitHub.mp4" controls width="100%"></video>
 
-**Open the app:** https://daktari-kate.github.io/rehab-champ/
+[▶ Watch the 46-second intro video](https://github.com/Daktari-Kate/Rehab-champ/raw/main/Rehab-Champ-intro-for-GitHub.mp4)
+
+**Open the app:** https://daktari-kate.github.io/Rehab-champ/
 
 ## What it does
 
@@ -41,6 +42,10 @@ The built-in program follows one physiotherapist's plan. Rehab Champ is not a su
 ## About
 
 Rehab Champ was designed by Dr Kate Taylor when she injured her Achilles. She is a digital health founder, so the app is built on clinical evidence and best practice, but you tailor the program based on your physiotherapist's advice.
+
+## Copyright
+
+© 2026 Dr Kate Taylor. All rights reserved. The app's code, design and original text may not be copied, modified, redistributed or sold without permission. See the `LICENSE` file.
 
 ## For developers
 
