@@ -135,6 +135,7 @@
   .day-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .day-chip.today { box-shadow: 0 0 0 2px var(--accent-soft); }
   .day-chip:disabled { opacity: 0.45; cursor: default; }
+  .daily-msg { color: #C2570C; font-size: 16px; font-weight: 600; font-style: italic; line-height: 1.4; margin-bottom: 16px; }
   .plan-card { border: 2px dashed var(--accent); background: var(--accent-soft); }
   nav {
     position: fixed; bottom: 0; left: 0; right: 0;
@@ -157,6 +158,7 @@
 
 <!-- ==================== TODAY ==================== -->
 <section id="screen-today" class="screen active">
+  <h1 id="today-hello" style="margin-bottom: 4px;" hidden></h1>
   <div class="row">
     <p class="muted" id="today-date"></p>
     <p class="muted" id="today-postop"></p>
@@ -165,7 +167,7 @@
     <span class="pill" id="today-phase"></span>
     <button class="btn-quiet" onclick="showScreen('checkin')">🌙 Evening check-in</button>
   </div>
-  <p class="muted" id="daily-msg" style="font-style: italic; margin-bottom: 16px;"></p>
+  <p class="daily-msg" id="daily-msg"></p>
   <div id="plan-prompt"></div>
 
   <div class="card">
@@ -186,6 +188,7 @@
   </div>
 
   <div id="sessions"></div>
+  <div id="locked-note"></div>
 
   <div id="extras-today"></div>
   <button class="btn" onclick="showScreen('extra')">＋ Log extra session</button>
@@ -202,12 +205,12 @@
   <p class="muted" style="margin-bottom: 20px;">End-of-day numbers. Private to this screen.</p>
   <div class="card">
     <div class="field">
-      <label for="steps">Steps today (from Oura)</label>
-      <input type="number" id="steps" inputmode="numeric" placeholder="e.g. 1840">
+      <label for="steps">Today’s step count</label>
+      <input type="number" id="steps" inputmode="numeric" placeholder="e.g. 1234">
     </div>
     <div class="field">
-      <label for="weight">Body weight (kg)</label>
-      <input type="number" id="weight" inputmode="decimal" step="0.1" placeholder="e.g. 68.4">
+      <label for="weight" id="weight-label">Body weight (kg)</label>
+      <input type="number" id="weight" inputmode="decimal" step="0.1" placeholder="e.g. 76.5">
     </div>
     <button class="btn primary" onclick="saveCheckin()">Save</button>
     <p class="faint" id="checkin-status" style="text-align:center; margin-top:8px;"></p>
@@ -248,6 +251,8 @@
 <section id="screen-program" class="screen">
   <h1 style="margin-bottom: 4px;">Program</h1>
   <p class="muted" style="margin-bottom: 16px;">Draft — confirm every phase with your physio. Phase changes are your and your physio's decision, never automatic.</p>
+  <div id="clearance-card"></div>
+  <div id="sports-card"></div>
   <div id="phase-list"></div>
 </section>
 
@@ -283,23 +288,102 @@
   <h1>Settings</h1>
   <div class="card">
     <div class="field">
+      <label for="user-name">Your name</label>
+      <input type="text" id="user-name" onchange="saveName(this.value)">
+    </div>
+    <div class="field">
+      <label for="weight-unit">Weights in</label>
+      <select id="weight-unit" onchange="saveUnit(this.value)">
+        <option value="kg">Kilograms (kg)</option><option value="lb">Pounds (lbs)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="injured-side">Injured Achilles</label>
+      <select id="injured-side" onchange="saveSide(this.value)">
+        <option value="left">Left</option><option value="right">Right</option>
+      </select>
+    </div>
+    <div class="field">
       <label for="surgery-date">Surgery date</label>
       <input type="date" id="surgery-date" onchange="saveSurgeryDate(this.value)">
     </div>
     <p class="faint">All data is stored only on this device. Nothing is sent anywhere.</p>
     <p class="faint" id="app-version" style="margin-top:6px;"></p>
   </div>
+  <div class="card">
+    <h2>Your data</h2>
+    <p class="muted">Your log lives only on this phone. If Safari data is cleared or the phone is lost, it’s gone — so back it up now and then (save it to Files, iCloud Drive or email it to yourself).</p>
+    <p class="faint" id="backup-status" style="margin-top:6px;"></p>
+    <button class="btn" onclick="exportData()">⬆️ Back up my data</button>
+    <button class="btn" onclick="document.getElementById('restore-file').click()">⬇️ Restore from a backup</button>
+    <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="importData(this.files[0])">
+  </div>
+  <div class="card">
+    <h2>Feedback</h2>
+    <p class="muted" style="margin-bottom:10px;">Something confusing, broken, or missing? Tell me — it opens an email you can read and edit before sending.</p>
+    <textarea id="feedback-text" rows="4" placeholder="What happened, or what would help?"></textarea>
+    <button class="btn" onclick="sendFeedback()">✉️ Send feedback</button>
+    <p class="faint" id="feedback-status" style="margin-top:6px;"></p>
+  </div>
 </section>
 
 <!-- ==================== PLAN YOUR WEEK ==================== -->
 <section id="screen-plan" class="screen">
-  <h1 style="margin-bottom: 4px;">Plan your week</h1>
+  <h1 id="plan-title" style="margin-bottom: 4px;">Plan your week</h1>
   <p class="muted" id="plan-sub" style="margin-bottom: 14px;"></p>
   <div id="plan-list"></div>
   <p class="faint" style="margin-bottom: 4px;">Sessions only appear on Today on the days you pick. Leave a session with no days to skip it this week. You can change this any time.</p>
   <button class="btn primary" onclick="savePlan()">Save plan</button>
   <button class="btn" onclick="skipPlan()">Show every day instead</button>
   <button class="btn-quiet" style="margin-top: 8px;" onclick="showScreen('today')">Cancel</button>
+</section>
+
+<!-- ==================== WELCOME (first run) ==================== -->
+<section id="screen-welcome" class="screen">
+  <h1 style="margin: 24px 0 6px;">Welcome to Rehab Champ 👋</h1>
+  <p style="font-size: 15px; line-height: 1.5; margin-bottom: 18px;">We’re sorry you need this app. We know it’s a long, slow recovery, and faithful rehab makes all the difference. You’ve got one shot at getting this right, so Rehab Champ is here to cheer you on.</p>
+  <div class="card" id="welcome-howto">
+    <h2>How it works</h2>
+    <ul class="compact" style="margin-left:18px; line-height:1.5;">
+      <li><b>Today</b> shows what’s due. Tap an exercise to tick it off; tap a load chip to remember your weights.</li>
+      <li><b>Each week</b>, choose which days you’re doing gym or pool — they only appear on those days.</li>
+      <li><b>Some sessions stay hidden</b> until your physio clears them. Enter the date on the Program tab.</li>
+      <li>Everything stays on this phone, so use <b>Settings → Back up</b> now and then.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <div class="field">
+      <label for="welcome-name">What should we call you? (optional)</label>
+      <input type="text" id="welcome-name" autocomplete="given-name">
+    </div>
+    <div class="field">
+      <label>Which Achilles did you injure?</label>
+      <div class="day-chips">
+        <button class="day-chip" id="side-left" style="min-height:48px; font-size:15px;" onclick="pickSide('left')">Left</button>
+        <button class="day-chip" id="side-right" style="min-height:48px; font-size:15px;" onclick="pickSide('right')">Right</button>
+      </div>
+      <p class="faint" style="margin-top:6px;">The program will call the other one your right/left (unaffected) leg where it needs to.</p>
+    </div>
+    <div class="field">
+      <label>Show weights in</label>
+      <div class="day-chips">
+        <button class="day-chip" id="unit-kg" style="min-height:48px; font-size:15px;" onclick="pickUnit('kg')">kg</button>
+        <button class="day-chip" id="unit-lb" style="min-height:48px; font-size:15px;" onclick="pickUnit('lb')">lbs</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="welcome-surgery">Date of your surgery</label>
+      <input type="date" id="welcome-surgery">
+    </div>
+    <p class="faint" id="welcome-err" style="color: var(--amber);"></p>
+    <button class="btn primary" onclick="finishWelcome()">Let’s go</button>
+  </div>
+  <p class="faint">The program here follows one physio’s plan. Check every phase with your own physio — you can change the phase any time on the Program tab.</p>
+  <div class="card" id="welcome-about" style="margin-top: 16px;">
+    <h2>About</h2>
+    <p class="muted" style="line-height: 1.5;">Rehab Champ was designed by Dr Kate Taylor when she injured her Achilles. She is a digital health Founder, so this app has been designed based on clinical evidence and best practice — but you tailor the program based on your physiotherapist’s advice.</p>
+    <p class="muted" style="line-height: 1.5; margin-top: 8px;">The app is also built with privacy by design. All your data stays on your phone — nothing is sent anywhere.</p>
+  </div>
 </section>
 
 <!-- ==================== NAV ==================== -->
@@ -311,7 +395,7 @@
 </nav>
 
 <script>
-const APP_VERSION = '1.3 — 25 Nov 2026';
+const APP_VERSION = '1.13 — 25 Nov 2026';
 
 // ---------- Storage helpers (localStorage for now; IndexedDB upgrade planned) ----------
 const store = {
@@ -332,6 +416,60 @@ const todayKey = () => dateKey(new Date());
 const DEFAULT_SURGERY = '2026-06-26';
 function surgeryDate() { return store.get('surgery', DEFAULT_SURGERY); }
 function saveSurgeryDate(v) { if (v) { store.set('surgery', v); render(); } }
+// Weights are always STORED in kg and converted for display/input, so changing the unit
+// later never corrupts history. (Existing data was entered in kg, which is the default.)
+const LB_PER_KG = 2.20462;
+function weightUnit() { return store.get('unit', 'kg'); }
+function unitLabel() { return weightUnit() === 'lb' ? 'lbs' : 'kg'; }
+function toDisplay(kg) {
+  if (kg == null) return null;
+  // lbs are shown as whole numbers; kg keeps one decimal.
+  return weightUnit() === 'lb' ? Math.round(kg * LB_PER_KG) : Math.round(kg * 10) / 10;
+}
+function fromInput(v) {
+  const n = Number(v);
+  return weightUnit() === 'lb' ? Math.round(n / LB_PER_KG * 1000) / 1000 : n;
+}
+function saveUnit(v) { store.set('unit', v); render(); }
+function userName() { return store.get('name', ''); }
+// Which Achilles was injured. Existing data predates this setting, so default 'left'.
+function injuredSide() { return store.get('side', 'left'); }
+function saveSide(v) { store.set('side', v); buildProgram(); render(); }
+function saveName(v) { store.set('name', v.trim()); render(); }
+// First run: anyone with no saved data sees the welcome screen. Anyone who already
+// has data (e.g. before this screen existed) is marked as onboarded and skips it.
+function needsWelcome() {
+  if (store.get('onboarded', false)) return false;
+  if (Object.keys(localStorage).some(k => k.startsWith('rc_'))) { store.set('onboarded', true); return false; }
+  return true;
+}
+let welcomeSide = null;
+function pickSide(v) {
+  welcomeSide = v;
+  ['left', 'right'].forEach(x => document.getElementById('side-' + x).classList.toggle('on', x === v));
+}
+let welcomeUnit = null;
+function pickUnit(v) {
+  welcomeUnit = v;
+  ['kg', 'lb'].forEach(x => document.getElementById('unit-' + x).classList.toggle('on', x === v));
+}
+function finishWelcome() {
+  const date = document.getElementById('welcome-surgery').value;
+  const err = document.getElementById('welcome-err');
+  if (!welcomeSide) { err.textContent = 'Please choose which Achilles was injured.'; return; }
+  if (!welcomeUnit) { err.textContent = 'Please choose kg or lbs.'; return; }
+  if (!date) { err.textContent = 'Please choose your surgery date \u2014 it sets your week number.'; return; }
+  if (date > todayKey()) { err.textContent = 'That date is in the future \u2014 please check it.'; return; }
+  store.set('side', welcomeSide);
+  store.set('unit', welcomeUnit);
+  store.set('sports', []);
+  buildProgram();
+  store.set('surgery', date);
+  store.set('name', document.getElementById('welcome-name').value.trim());
+  store.set('onboarded', true);
+  showScreen('today');
+  render();
+}
 
 // ---------- Program data (from 02-REHAB-PROGRAM.md — physio will edit) ----------
 // slot: morning | afternoon | bedtime | anytime
@@ -343,10 +481,27 @@ const SLOTS = [
   { id: 'bedtime',   label: 'Bedtime' },
 ];
 
-const PROGRAM = [
+// Goal sports: each sport she adds gets an optional, clearance-gated checklist in Phase 5.
+// Taekwondo has its own kick-specific stages; every other sport uses the generic five.
+const TKD_ITEMS = [
+  { id: 'tech',  name: 'Technique-only drills', dose: 'stage 1' },
+  { id: 'bag',   name: 'Light bag work', dose: 'stage 2' },
+  { id: 'right', name: 'Jumping/spinning kicks off {GOOD} leg', dose: 'stage 3' },
+  { id: 'left',  name: 'Explosive push-off & jumps off {INJURED} leg', dose: 'stage 4' },
+  { id: 'spar',  name: 'Controlled → full sparring', dose: 'stage 5' },
+];
+const GENERIC_SPORT_ITEMS = [
+  { id: 'st1', name: 'Skills & technique only', dose: 'stage 1' },
+  { id: 'st2', name: 'Light practice, low intensity', dose: 'stage 2' },
+  { id: 'st3', name: 'Sport-specific movement at moderate intensity', dose: 'stage 3' },
+  { id: 'st4', name: 'Explosive efforts: sprinting, jumping, quick changes of direction', dose: 'stage 4' },
+  { id: 'st5', name: 'Controlled → full play', dose: 'stage 5' },
+];
+
+const PROGRAM_TEMPLATE = [
   {
     num: 1, name: 'Protection', weeks: 'Weeks 0–2',
-    goals: 'Protect the repair, manage swelling, keep the rest of you strong — including the right leg, which carries elevated rupture risk and is the reference for all later symmetry tests.',
+    goals: 'Protect the repair, manage swelling, keep the rest of you strong — including the {good} leg, which carries elevated rupture risk and is the reference for all later symmetry tests.',
     exit: ['Wound healed / sutures out', 'Surgeon clears progression'],
     sessions: [
       { id: 'p1-circ-am', icon: '🩺', name: 'Rehab — circulation & hips', slot: 'morning', freq: 'daily', perWeek: 7, items: [
@@ -355,12 +510,12 @@ const PROGRAM = [
         { id: 'hipabd', name: 'Side-lying hip abduction', dose: '3 × 12' },
         { id: 'bridge', name: 'Glute bridges', dose: '3 × 15' },
       ]},
-      { id: 'p1-gym', icon: '🏋️', name: 'Gym — upper body, core & right leg', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+      { id: 'p1-gym', icon: '🏋️', name: 'Gym — upper body, core & {good} leg', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
         { id: 'db',      name: 'Seated dumbbell press', dose: '3 × 10', load: 'kg' },
         { id: 'row',     name: 'Band rows', dose: '3 × 12', load: 'band' },
         { id: 'deadbug', name: 'Dead bugs', dose: '3 × 10' },
-        { id: 'rcalf',   name: 'Right leg: standing calf raises (support as needed)', dose: '3 × 15', load: 'bw+' },
-        { id: 'rquad',   name: 'Right leg: seated leg extensions', dose: '3 × 12', load: 'kg' },
+        { id: 'rcalf',   name: '{Good} leg: standing calf raises (support as needed)', dose: '3 × 15', load: 'bw+' },
+        { id: 'rquad',   name: '{Good} leg: seated leg extensions', dose: '3 × 12', load: 'kg' },
       ]},
       { id: 'p1-circ-pm', icon: '🌙', name: 'Circulation set', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
         { id: 'toes2', name: 'Toe wiggles', dose: '3 × 20' },
@@ -379,7 +534,7 @@ const PROGRAM = [
         { id: 'neck',  name: 'Neck rotations', dose: '10 each way' },
         { id: 'ubrot', name: 'Upper back: seated rotations', dose: '10 each side' },
         { id: 'lback', name: 'Lower back: seated bends & arches', dose: '× 10' },
-        { id: 'glute', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'glute', name: '{Good} glute stretch', dose: '3 × 30s' },
         { id: 'hstr',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
       { id: 'p2-rom-pm', icon: '☀️', name: 'Ankle & body mobility — set 2', slot: 'afternoon', freq: 'daily', perWeek: 7, items: [
@@ -388,14 +543,14 @@ const PROGRAM = [
         { id: 'neck2',  name: 'Neck rotations', dose: '10 each way' },
         { id: 'ubrot2', name: 'Upper back: seated rotations', dose: '10 each side' },
         { id: 'lback2', name: 'Lower back: seated bends & arches', dose: '× 10' },
-        { id: 'glute2', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'glute2', name: '{Good} glute stretch', dose: '3 × 30s' },
         { id: 'hstr2',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
       { id: 'p2-strength', icon: '🦵', name: 'Hip, knee & core strength', slot: 'anytime', freq: 'daily', perWeek: 7, items: [
-        { id: 'rcalf',    name: 'Standing on right leg: single-leg calf raises', dose: '3 × 10', load: 'bw+' },
+        { id: 'rcalf',    name: 'Standing on {good} leg: single-leg calf raises', dose: '3 × 10', load: 'bw+' },
         { id: 'hipext',   name: 'Standing: hip extension', dose: '3 × 10' },
         { id: 'hipabd',   name: 'Standing: hip abduction', dose: '3 × 10' },
-        { id: 'slsquat',  name: 'Standing: single-leg squat (right leg)', dose: '3 × 10', load: 'bw+' },
+        { id: 'slsquat',  name: 'Standing: single-leg squat ({good} leg)', dose: '3 × 10', load: 'bw+' },
         { id: 'bal',      name: 'Double-leg balance', dose: '3 × 30s' },
         { id: 'clam',     name: 'Lying: clams (both sides)', dose: '3 × 10' },
         { id: 'ham',      name: 'Lying: hamstring curls (both legs)', dose: '3 × 10' },
@@ -415,7 +570,7 @@ const PROGRAM = [
         { id: 'feet',   name: 'Balance, feet together', dose: '3 × 30s' },
         { id: 'bridge', name: 'Bridges — double leg → single leg (both sides)', dose: '3 × 10' },
       ]},
-      { id: 'p2-pool', icon: '🏊', name: 'Pool (surgeon approves wound immersion)', slot: 'anytime', freq: '2×/week', perWeek: 2, fromWeek: 4, items: [
+      { id: 'p2-pool', needsClearance: true, clearanceKey: 'pool', icon: '🏊', name: 'Pool (surgeon approves wound immersion)', slot: 'anytime', freq: '2×/week', perWeek: 2, fromWeek: 4, items: [
         { id: 'swim', name: 'Swim with pull buoy — no wall push-off', dose: '20–30 min' },
         { id: 'dwr',  name: 'Deep-water running with belt', dose: '10–15 min' },
       ]},
@@ -430,7 +585,7 @@ const PROGRAM = [
         { id: 'neck3',  name: 'Neck rotations', dose: '10 each way' },
         { id: 'ubrot3', name: 'Upper back: seated rotations', dose: '10 each side' },
         { id: 'lback3', name: 'Lower back: seated bends & arches', dose: '× 10' },
-        { id: 'glute3', name: 'Right glute stretch', dose: '3 × 30s' },
+        { id: 'glute3', name: '{Good} glute stretch', dose: '3 × 30s' },
         { id: 'hstr3',  name: 'Hamstring stretch (ankle relaxed — no calf pull)', dose: '3 × 30s' },
       ]},
     ],
@@ -446,13 +601,13 @@ const PROGRAM = [
       ]},
       { id: 'p3-gym', icon: '🏋️', name: 'Gym — strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
         { id: 'seatedcalf', name: 'Seated calf raises', dose: '3 × 15', load: 'kg' },
-        { id: 'dlheel',     name: 'Two-leg heel raises (weight shifting left over time)', dose: '3 × 12', load: 'bw+' },
-        { id: 'rcalf',      name: 'Right leg: single-leg calf raises, loaded', dose: '3 × 12', load: 'bw+' },
+        { id: 'dlheel',     name: 'Two-leg heel raises (weight shifting toward the {injured} leg over time)', dose: '3 × 12', load: 'bw+' },
+        { id: 'rcalf',      name: '{Good} leg: single-leg calf raises, loaded', dose: '3 × 12', load: 'bw+' },
         { id: 'legpress',   name: 'Leg press calf pushes', dose: '3 × 12', load: 'kg' },
         { id: 'squat',      name: 'Squats / step-ups within comfort', dose: '3 × 10', load: 'bw+' },
         { id: 'upper',      name: 'Upper body block', dose: '20 min' },
       ]},
-      { id: 'p3-pool', icon: '🏊', name: 'Pool — strength & gait', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+      { id: 'p3-pool', needsClearance: true, clearanceKey: 'pool', icon: '🏊', name: 'Pool — strength & gait', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
         { id: 'walk',   name: 'Chest-deep walking drills', dose: '10 min' },
         { id: 'wheels', name: 'Heel raises in water', dose: '3 × 15' },
         { id: 'aqua',   name: 'Aqua jogging', dose: '15–20 min' },
@@ -468,22 +623,22 @@ const PROGRAM = [
   {
     num: 4, name: 'Late rehabilitation', weeks: 'Weeks 12–24',
     goals: 'Single-leg strength, then plyometrics, then running. Return-to-run is a criteria gate, not a date: ~10 full-range single-leg heel raises + good single-leg squat control.',
-    exit: ['Strength >70–80% of right leg', 'Running 20–30 min comfortably', 'Controlled jumping and landing'],
+    exit: ['Strength >70–80% of {good} leg', 'Running 20–30 min comfortably', 'Controlled jumping and landing'],
     sessions: [
       { id: 'p4-gym', icon: '🏋️', name: 'Gym — heavy calf & leg strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
-        { id: 'slheel',  name: 'Single-leg heel raise progression (left)', dose: '4 × 8–12', load: 'bw+' },
-        { id: 'rmatch',  name: 'Right leg: match all single-leg work', dose: 'same sets' },
+        { id: 'slheel',  name: 'Single-leg heel raise progression ({injured})', dose: '4 × 8–12', load: 'bw+' },
+        { id: 'rmatch',  name: '{Good} leg: match all single-leg work', dose: 'same sets' },
         { id: 'soleus',  name: 'Seated soleus raises, loaded', dose: '4 × 12', load: 'kg' },
         { id: 'split',   name: 'Split squats', dose: '3 × 10', load: 'bw+' },
         { id: 'rdl',     name: 'Romanian deadlifts', dose: '3 × 10', load: 'kg' },
         { id: 'upper',   name: 'Upper body block', dose: '20 min' },
       ]},
-      { id: 'p4-plyo', icon: '⚡', name: 'Intro plyometrics (once cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+      { id: 'p4-plyo', needsClearance: true, icon: '⚡', name: 'Intro plyometrics (once cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
         { id: 'pogo',   name: 'Pogo hops — band-assisted → free', dose: '3 × 20' },
         { id: 'ladder', name: 'Ladder drills', dose: '10 min' },
         { id: 'box',    name: 'Low box step-and-drive', dose: '3 × 8' },
       ]},
-      { id: 'p4-run', icon: '🏃', name: 'Run progression (criteria met + physio cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+      { id: 'p4-run', needsClearance: true, icon: '🏃', name: 'Run progression (criteria met + physio cleared)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
         { id: 'wj', name: 'Walk-jog intervals', dose: 'per plan' },
       ]},
       { id: 'p4-bal', icon: '🧘', name: 'Balance & mobility micro-session', slot: 'bedtime', freq: 'daily', perWeek: 7, items: [
@@ -493,32 +648,107 @@ const PROGRAM = [
   },
   {
     num: 5, name: 'Return to sport', weeks: 'Months 6–12',
-    goals: 'Power, reactive strength, sport-specific work. Taekwondo is the final gate — explosive push-off and jumping kicks off the left leg come last (10–12+ months).',
-    exit: ['Heel-raise endurance >90% of right leg', 'Hop & drop-jump asymmetry <10%', 'Physio clearance for full sparring'],
+    goals: 'Power, reactive strength, sport-specific work. Your goal sports come last — explosive push-off and jumping off the {injured} leg is the most demanding load (10–12+ months).',
+    exit: ['Heel-raise endurance >90% of {good} leg', 'Hop & drop-jump asymmetry <10%', 'Physio clearance for full-intensity sport'],
     sessions: [
       { id: 'p5-gym', icon: '🏋️', name: 'Gym — strength maintenance (both legs)', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
         { id: 'slheel', name: 'Single-leg heel raises, loaded (both legs)', dose: '4 × 10', load: 'bw+' },
         { id: 'soleus', name: 'Seated soleus raises, heavy', dose: '4 × 10', load: 'kg' },
         { id: 'lower',  name: 'Lower body compound block', dose: '30 min' },
       ]},
-      { id: 'p5-plyo', icon: '⚡', name: 'Plyometrics & power', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
+      { id: 'p5-plyo', needsClearance: true, icon: '⚡', name: 'Plyometrics & power', slot: 'anytime', freq: '2×/week', perWeek: 2, items: [
         { id: 'cmj',  name: 'Countermovement & box jumps', dose: '4 × 6' },
         { id: 'drop', name: 'Drop jumps → single-leg variants', dose: '3 × 5' },
         { id: 'cod',  name: 'Change-of-direction & cutting drills', dose: '15 min' },
       ]},
-      { id: 'p5-run', icon: '🏃', name: 'Running', slot: 'anytime', freq: '2–3×/week', perWeek: 2, items: [
+      { id: 'p5-run', needsClearance: true, icon: '🏃', name: 'Running', slot: 'anytime', freq: '2–3×/week', perWeek: 2, items: [
         { id: 'run', name: 'Volume → tempo → strides → sprints', dose: 'per plan' },
-      ]},
-      { id: 'p5-tkd', icon: '🥋', name: 'Taekwondo progression', slot: 'anytime', freq: 'per plan', perWeek: 0, items: [
-        { id: 'tech',  name: 'Technique-only drills', dose: 'stage 1' },
-        { id: 'bag',   name: 'Light bag work', dose: 'stage 2' },
-        { id: 'right', name: 'Jumping/spinning kicks off RIGHT leg', dose: 'stage 3' },
-        { id: 'left',  name: 'Explosive push-off & jumps off LEFT leg', dose: 'stage 4' },
-        { id: 'spar',  name: 'Controlled → full sparring', dose: 'stage 5' },
       ]},
     ],
   },
 ];
+
+// The template holds {injured}/{good} placeholders (and {Injured}, {GOOD}...); they are
+// filled in with 'left'/'right' from the side chosen on the welcome screen / Settings.
+let PROGRAM = [];
+function sideText(str) {
+  const inj = injuredSide(), good = inj === 'left' ? 'right' : 'left';
+  const cap = w => w[0].toUpperCase() + w.slice(1);
+  return str.replace(/\{injured\}/g, inj).replace(/\{Injured\}/g, cap(inj)).replace(/\{INJURED\}/g, inj.toUpperCase())
+            .replace(/\{good\}/g, good).replace(/\{Good\}/g, cap(good)).replace(/\{GOOD\}/g, good.toUpperCase());
+}
+function getSports() { return store.get('sports', []); }
+function sportSession(sp) {
+  const tkd = sp.preset === 'tkd';
+  return {
+    id: tkd ? 'p5-tkd' : 'p5-sport-' + sp.id,   // p5-tkd keeps old tick history & clearance date
+    needsClearance: true, icon: tkd ? '🥋' : '🏅', name: sp.name + ' progression',
+    slot: 'anytime', freq: 'optional', perWeek: 0,
+    items: JSON.parse(sideText(JSON.stringify(tkd ? TKD_ITEMS : GENERIC_SPORT_ITEMS))),
+  };
+}
+function buildProgram() {
+  PROGRAM = JSON.parse(sideText(JSON.stringify(PROGRAM_TEMPLATE)));
+  const p5 = PROGRAM.find(p => p.num === 5);
+  getSports().forEach(sp => p5.sessions.push(sportSession(sp)));
+}
+// Existing users predate "goal sports": give them Taekwondo so nothing changes for them.
+// (New users get an empty list from the welcome screen.)
+function ensureSports() {
+  if (store.get('sports', null) === null) store.set('sports', [{ id: 'taekwondo', name: 'Taekwondo', preset: 'tkd' }]);
+  buildProgram();
+}
+function addSport() {
+  const inp = document.getElementById('sport-input');
+  const name = inp.value.trim().replace(/[<>&"]/g, '').slice(0, 30);
+  if (!name) return;
+  const sports = getSports();
+  if (sports.some(x => x.name.toLowerCase() === name.toLowerCase())) { inp.value = ''; return; }
+  const tkd = /^taekwondo$/i.test(name);
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || String(Date.now());
+  sports.push(tkd ? { id: 'taekwondo', name: 'Taekwondo', preset: 'tkd' } : { id: slug, name });
+  store.set('sports', sports);
+  inp.value = '';
+  buildProgram();
+  render();
+}
+function removeSport(id) {
+  const sp = getSports().find(x => x.id === id);
+  if (!sp || !confirm('Remove ' + sp.name + ' from your goal sports?')) return;
+  store.set('sports', getSports().filter(x => x.id !== id));
+  buildProgram();
+  render();
+}
+function renderSports() {
+  const box = document.getElementById('sports-card');
+  const keep = (document.getElementById('sport-input') || {}).value || '';
+  box.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<h2>\uD83C\uDFAF My goal sports</h2>'
+    + '<p class="muted" style="margin-bottom:8px;">Add the sports you\u2019re working back towards. Each gets an optional staged checklist in Phase 5, once your physio clears it.</p>';
+  getSports().forEach(sp => {
+    const row = document.createElement('div');
+    row.className = 'extra-row';
+    row.innerHTML = '<span>' + (sp.preset === 'tkd' ? '\uD83E\uDD4B' : '\uD83C\uDFC5') + ' ' + sp.name + '</span>';
+    const del = document.createElement('button');
+    del.className = 'btn-quiet'; del.textContent = '\u2715';
+    del.setAttribute('aria-label', 'Remove ' + sp.name);
+    del.onclick = () => removeSport(sp.id);
+    row.appendChild(del);
+    card.appendChild(row);
+  });
+  if (!getSports().length) card.insertAdjacentHTML('beforeend', '<p class="faint" style="margin-bottom:8px;">No goal sports yet.</p>');
+  const add = document.createElement('div');
+  add.style.cssText = 'display:flex; gap:8px; margin-top:10px;';
+  add.innerHTML = '<input type="text" id="sport-input" placeholder="e.g. Taekwondo, hiking, netball" maxlength="30" style="flex:1; min-width:0;">'
+    + '<button class="btn small" style="margin:0; flex-shrink:0;" onclick="addSport()">Add</button>';
+  card.appendChild(add);
+  box.appendChild(card);
+  document.getElementById('sport-input').value = keep;
+}
+
+buildProgram();
 
 // ---------- Derived values ----------
 function daysPostOp() {
@@ -567,7 +797,7 @@ function weekAdherence() {
   let planned = 0, done = 0;
   ph.sessions.forEach(s => {
     if (!s.perWeek) return;
-    if (s.fromWeek && weekPostOp() < s.fromWeek) return;
+    if (!isUnlocked(s)) return;
     // If days were picked for this week, those days ARE the target; otherwise prorate the program's N×/week.
     const picked = s.perWeek < 7 ? plannedDays(s) : null;
     const target = picked ? picked.filter(i => i < daysElapsed).length
@@ -593,9 +823,28 @@ function weekAdherence() {
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const dayIndex = d => (d.getDay() + 6) % 7;
-const planKey = () => 'plan_' + dateKey(mondayOf(new Date()));
-function getPlan() { return store.get(planKey(), { skip: false, ids: {} }); }
-function isUnlocked(s) { return !s.fromWeek || weekPostOp() >= s.fromWeek; }
+const planKey = (offset = 0) => {
+  const m = mondayOf(new Date());
+  m.setDate(m.getDate() + 7 * offset);   // offset 1 = next week
+  return 'plan_' + dateKey(m);
+};
+function getPlan(offset = 0) { return store.get(planKey(offset), { skip: false, ids: {} }); }
+// Sessions flagged needsClearance stay hidden until a physio-clearance date has
+// been entered (Program tab) and that date has arrived.
+function getClearances() { return store.get('clearances', {}); }
+function setClearance(id, v) {
+  const c = getClearances();
+  if (v) c[id] = v; else delete c[id];
+  store.set('clearances', c);
+  render();
+}
+const clearanceKey = s => s.clearanceKey || s.id;   // sessions can share one clearance date
+function isCleared(s) {
+  if (!s.needsClearance) return true;
+  const d = getClearances()[clearanceKey(s)];
+  return !!d && d <= todayKey();
+}
+function isUnlocked(s) { return (!s.fromWeek || weekPostOp() >= s.fromWeek) && isCleared(s); }
 function plannableSessions(ph) {
   return ph.sessions.filter(s => s.perWeek > 0 && s.perWeek < 7 && isUnlocked(s));
 }
@@ -615,47 +864,58 @@ function renderPlanPrompt() {
   box.innerHTML = '';
   const plannable = plannableSessions(currentPhase());
   if (!plannable.length) return;
+  let html = '';
   const plan = getPlan();
-  if (plan.skip) {
-    box.innerHTML = '<div class="row" style="margin-bottom:12px;"><p class="faint">\uD83D\uDCC5 Showing every session every day</p>'
-      + '<button class="btn-quiet" onclick="openPlan()">Plan this week</button></div>';
-    return;
-  }
   const unplanned = plannable.filter(s => !plan.ids[s.id]);
-  if (unplanned.length) {
-    const names = unplanned.map(shortName).join(' and ');
-    box.innerHTML = '<div class="card plan-card"><h2>\uD83D\uDCC5 Plan your week</h2>'
-      + '<p class="muted">Pick the days you\u2019re doing ' + names + ' this week \u2014 they\u2019ll only show up on those days.</p>'
+  if (plan.skip) {
+    html += '<div class="row" style="margin-bottom:12px;"><p class="faint">📅 Showing every session every day</p>'
+      + '<button class="btn-quiet" onclick="openPlan()">Plan this week</button></div>';
+  } else if (unplanned.length) {
+    html += '<div class="card plan-card"><h2>📅 Plan your week</h2>'
+      + '<p class="muted">Pick the days you’re doing ' + unplanned.map(shortName).join(' and ') + ' this week — they’ll only show up on those days.</p>'
       + '<button class="btn primary" onclick="openPlan()">Choose days</button></div>';
-    return;
+  } else {
+    const parts = plannable.map(s => {
+      const d = plan.ids[s.id];
+      return shortName(s) + ': ' + (d.length ? d.map(i => DAY_NAMES[i]).join(' · ') : 'not this week');
+    });
+    html += '<div class="row" style="margin-bottom:12px; align-items:flex-start;">'
+      + '<p class="faint" style="line-height:1.5;">📅 ' + parts.join('<br>') + '</p>'
+      + '<button class="btn-quiet" onclick="openPlan()">Edit</button></div>';
   }
-  const parts = plannable.map(s => {
-    const d = plan.ids[s.id];
-    return shortName(s) + ': ' + (d.length ? d.map(i => DAY_NAMES[i]).join(' \u00B7 ') : 'not this week');
-  });
-  box.innerHTML = '<div class="row" style="margin-bottom:12px; align-items:flex-start;">'
-    + '<p class="faint" style="line-height:1.5;">\uD83D\uDCC5 ' + parts.join('<br>') + '</p>'
-    + '<button class="btn-quiet" onclick="openPlan()">Edit</button></div>';
+  // Weekend: offer to plan next week ahead of time.
+  if (dayIndex(new Date()) >= 5) {
+    const nxt = getPlan(1);
+    if (!nxt.skip && plannable.some(s => !nxt.ids[s.id])) {
+      html += '<div class="row" style="margin-bottom:12px;"><p class="faint">📅 Next week isn’t planned yet</p>'
+        + '<button class="btn-quiet" onclick="openPlan(1)">Plan next week</button></div>';
+    }
+  }
+  box.innerHTML = html;
 }
 
-let planDraft = {};
-function openPlan() {
-  const plan = getPlan();
+let planDraft = {}, planOffset = 0;
+function openPlan(offset = 0) {
+  planOffset = offset;
+  const plan = getPlan(offset);
   planDraft = {};
   plannableSessions(currentPhase()).forEach(s => { planDraft[s.id] = (plan.ids[s.id] || []).slice(); });
   renderPlan();
   showScreen('plan');
 }
 function renderPlan() {
+  document.getElementById('plan-title').textContent = planOffset ? 'Plan next week' : 'Plan your week';
+  const monday = mondayOf(new Date());
+  monday.setDate(monday.getDate() + 7 * planOffset);
   document.getElementById('plan-sub').textContent =
-    'Week of ' + mondayOf(new Date()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+    'Week of ' + monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
   const list = document.getElementById('plan-list');
   list.innerHTML = '';
-  const today = dayIndex(new Date());
+  const today = planOffset ? -1 : dayIndex(new Date());   // next week: nothing is in the past
   plannableSessions(currentPhase()).forEach(s => {
     const picked = planDraft[s.id];
     const badge = !picked.length ? '<span class="badge amber">not this week</span>'
-      : picked.length >= s.perWeek ? '<span class="badge">' + picked.length + ' \u2713</span>'
+      : picked.length >= s.perWeek ? '<span class="badge">' + picked.length + ' ✓</span>'
       : '<span class="badge amber">' + picked.length + ' of ' + s.perWeek + '</span>';
     const card = document.createElement('div');
     card.className = 'card';
@@ -687,13 +947,13 @@ function toggleDay(id, i) {
 function savePlan() {
   const ids = Object.keys(planDraft);
   if (ids.length && ids.every(id => !planDraft[id].length) &&
-      !confirm('No days picked \u2014 none of these sessions will show this week. Continue?')) return;
-  store.set(planKey(), { skip: false, ids: planDraft });
+      !confirm('No days picked — none of these sessions will show that week. Continue?')) return;
+  store.set(planKey(planOffset), { skip: false, ids: planDraft });
   render();
   showScreen('today');
 }
 function skipPlan() {
-  store.set(planKey(), { skip: true, ids: {} });
+  store.set(planKey(planOffset), { skip: true, ids: {} });
   render();
   showScreen('today');
 }
@@ -714,20 +974,33 @@ const MESSAGES = [
   "Achilles was a warrior. So are you — minus the fatal flaw. You have an app.",
   "Every rep is a tiny promise to future-you.",
   "The pool doesn't know it's rehab. It thinks you're just swimming.",
-  "Left leg's on sabbatical, but the committee still meets daily.",
+  "{Injured} leg's on sabbatical, but the committee still meets daily.",
   "Boring exercises, spectacular results. That's the deal.",
   "One day this will just be a great story at the dojang.",
   "Show up. Tick boxes. Grow tendon. Repeat.",
   "You're not slow, you're remodelling.",
   "Nice to see you again. Your dedication is genuinely impressive.",
-  "Even your right leg is getting stronger out of solidarity.",
+  "Even your {good} leg is getting stronger out of solidarity.",
   "Another page in the comeback story. You're writing it well.",
 ];
+const REST_MESSAGES = [
+  "Tendons rebuild on days off. Today's job: be a champion at doing less.",
+  "No training session today \u2014 adaptation happens during rest, not just during effort.",
+  "Rest is part of the programme, not a gap in it. Enjoy it.",
+  "Recovery day. Your calf is quietly doing the hard work.",
+  "Strength is built in the days between sessions. Today is one of them.",
+];
+function pickForToday(arr) {
+  const k = todayKey();
+  let hash = 0;
+  for (let i = 0; i < k.length; i++) hash = (hash * 31 + k.charCodeAt(i)) >>> 0;
+  return arr[hash % arr.length];
+}
 function dailyMessage() {
   const k = todayKey();
   let hash = 0;
   for (let i = 0; i < k.length; i++) hash = (hash * 31 + k.charCodeAt(i)) >>> 0;
-  return MESSAGES[hash % MESSAGES.length];
+  return sideText(MESSAGES[hash % MESSAGES.length]);
 }
 
 // ---------- Milestones ----------
@@ -825,6 +1098,11 @@ function renderMilestones() {
 
 // ---------- Rendering ----------
 function render() {
+  // While the welcome screen is up, don't render (and don't write default data).
+  if (document.getElementById('screen-welcome').classList.contains('active')) return;
+  const hello = document.getElementById('today-hello');
+  hello.textContent = userName() ? 'Hi, ' + userName() + ' \uD83D\uDC4B' : '';
+  hello.hidden = !userName();
   const d = new Date();
   document.getElementById('today-date').textContent =
     d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -835,8 +1113,11 @@ function render() {
 
   renderPlanPrompt();
   renderSessions(ph);
+  renderLockedNote();
   renderExtrasToday();
   renderProgram();
+  renderSports();
+  renderClearance();
   renderMilestones();
   renderHistory();
   renderInputs();
@@ -847,6 +1128,13 @@ function renderSessions(ph) {
   const container = document.getElementById('sessions');
   container.innerHTML = '';
   let total = 0, done = 0;
+
+  // Rest day: the week is planned, and none of the planned sessions fall on today.
+  const planned = plannableSessions(ph), plan = getPlan();
+  if (planned.length && !plan.skip && planned.every(s => plan.ids[s.id]) && planned.every(s => !isScheduledToday(s))) {
+    container.innerHTML = '<div class="card"><h2>\uD83D\uDE0C Rest day from training</h2><p class="muted">'
+      + pickForToday(REST_MESSAGES) + '</p></div>';
+  }
 
   SLOTS.forEach(slot => {
     const sessions = ph.sessions.filter(s =>
@@ -922,6 +1210,47 @@ function renderExtrasToday() {
   container.appendChild(card);
 }
 
+const fmtDay = k => new Date(k + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+function renderClearance() {
+  const box = document.getElementById('clearance-card');
+  box.innerHTML = '';
+  const gated = currentPhase().sessions.filter(s => s.needsClearance);
+  if (!gated.length) return;
+  const c = getClearances();
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.innerHTML = '<h2>\uD83D\uDD13 Physio clearance</h2>'
+    + '<p class="muted" style="margin-bottom:10px;">These stay hidden until your physio clears them. Enter the date you\u2019re cleared to start and they\u2019ll appear on that day.</p>';
+  gated.forEach(s => {
+    const d = c[clearanceKey(s)] || '';
+    const status = !d ? 'Hidden \u2014 no date set'
+      : d <= todayKey() ? '\u2705 Active since ' + fmtDay(d) : 'Starts ' + fmtDay(d);
+    const row = document.createElement('div');
+    row.className = 'field';
+    row.innerHTML = '<label>' + s.icon + ' ' + shortName(s) + ' \u00B7 <span>' + status + '</span></label>';
+    const inp = document.createElement('input');
+    inp.type = 'date'; inp.value = d;
+    inp.onchange = () => setClearance(clearanceKey(s), inp.value);
+    row.appendChild(inp);
+    if (d) {
+      const x = document.createElement('button');
+      x.className = 'btn-quiet'; x.textContent = 'Remove date';
+      x.onclick = () => setClearance(clearanceKey(s), '');
+      row.appendChild(x);
+    }
+    card.appendChild(row);
+  });
+  box.appendChild(card);
+}
+function renderLockedNote() {
+  const box = document.getElementById('locked-note');
+  const waiting = currentPhase().sessions.filter(s => s.needsClearance && !isCleared(s));
+  box.innerHTML = waiting.length
+    ? '<div class="row" style="margin: 4px 0 12px; align-items:flex-start;"><p class="faint" style="line-height:1.5;">\uD83D\uDD12 Waiting on physio clearance: '
+      + waiting.map(shortName).join(', ') + '</p><button class="btn-quiet" onclick="showScreen(\'program\')">Set dates</button></div>'
+    : '';
+}
+
 function renderProgram() {
   const cur = currentPhaseNum();
   const container = document.getElementById('phase-list');
@@ -931,7 +1260,7 @@ function renderProgram() {
     card.className = 'card' + (ph.num === cur ? ' current' : '');
     const badge = ph.num === cur ? '<span class="badge">Current</span>' : '';
     const sessionsSummary = ph.sessions.map(s =>
-      '<li>' + s.icon + ' ' + s.name + ' — <em>' + s.freq + (s.fromWeek ? ' · from week ' + s.fromWeek : '') + '</em></li>').join('');
+      '<li>' + s.icon + ' ' + s.name + ' — <em>' + s.freq + (s.fromWeek ? ' · from week ' + s.fromWeek : '') + (s.needsClearance ? ' · needs physio clearance' : '') + '</em></li>').join('');
     const exitList = ph.exit.map(e => '<li>' + e + '</li>').join('');
     card.innerHTML = '<div class="row">'
       + '<h2 style="margin:0;">Phase ' + ph.num + ' · ' + ph.name + '</h2>' + badge + '</div>'
@@ -1046,16 +1375,24 @@ function renderInputs() {
                      : 'Rule of thumb: pain up to 5/10 is OK if it settles by morning.';
   const checkin = store.get('checkin_' + todayKey(), {});
   document.getElementById('steps').value = checkin.steps ?? '';
-  document.getElementById('weight').value = checkin.weight ?? '';
+  document.getElementById('weight').value = checkin.weight != null ? toDisplay(checkin.weight) : '';
+  document.getElementById('weight-label').textContent = 'Body weight (' + unitLabel() + ')';
+  document.getElementById('weight').placeholder = weightUnit() === 'lb' ? 'e.g. 169' : 'e.g. 76.5';
+  document.getElementById('weight').step = weightUnit() === 'lb' ? '1' : '0.1';
+  document.getElementById('weight-unit').value = weightUnit();
   document.getElementById('surgery-date').value = surgeryDate();
+  document.getElementById('user-name').value = userName();
+  document.getElementById('injured-side').value = injuredSide();
+  const lb = store.get('lastBackup', null);
+  document.getElementById('backup-status').textContent = lb ? 'Last backup: ' + fmtDay(lb) : 'Not backed up yet.';
   document.getElementById('app-version').textContent = 'Rehab Champ ' + APP_VERSION;
 }
 
 // ---------- Actions ----------
 function loadLabel(type, v) {
   if (type === 'band') return v || 'set band';
-  if (type === 'bw+') return v == null ? 'BW +?' : (v === 0 ? 'BW' : 'BW +' + v + ' kg');
-  return v != null ? v + ' kg' : 'set kg';
+  if (type === 'bw+') return v == null ? 'BW +?' : (v === 0 ? 'BW' : 'BW +' + toDisplay(v) + ' ' + unitLabel());
+  return v != null ? toDisplay(v) + ' ' + unitLabel() : 'set ' + unitLabel();
 }
 function setLoad(key, name, type) {
   const loads = store.get('loads', {});
@@ -1067,13 +1404,13 @@ function setLoad(key, name, type) {
     value = v.trim().slice(0, 20);
   } else {
     const msg = type === 'bw+'
-      ? 'Added weight in kg for:\n' + name + '\n(0 = bodyweight only)'
-      : 'Weight (kg) for:\n' + name;
-    const v = prompt(msg, current != null ? current : '');
+      ? 'Added weight in ' + unitLabel() + ' for:\n' + name + '\n(0 = bodyweight only)'
+      : 'Weight (' + unitLabel() + ') for:\n' + name;
+    const v = prompt(msg, current != null ? toDisplay(current) : '');
     if (v === null || v.trim() === '') return;
     const n = Number(v);
     if (isNaN(n) || n < 0) return;
-    value = n;
+    value = fromInput(v);
   }
   loads[key] = value;
   store.set('loads', loads);
@@ -1102,7 +1439,7 @@ function saveCheckin() {
   const weight = document.getElementById('weight').value;
   store.set('checkin_' + todayKey(), {
     steps: steps ? Number(steps) : null,
-    weight: weight ? Number(weight) : null,
+    weight: weight ? fromInput(weight) : null,
   });
   document.getElementById('checkin-status').textContent = 'Saved ✓';
   setTimeout(() => document.getElementById('checkin-status').textContent = '', 2000);
@@ -1122,7 +1459,77 @@ function saveExtra() {
   render();
   showScreen('today');
 }
+// ---------- Feedback ----------
+// The address is split in two so it isn't a plain 'name@domain' string in the public code.
+// That only deters simple scrapers \u2014 it does not truly hide it. Fill in both halves
+// (before and after the @); while they're empty the button explains it isn't set up.
+const FEEDBACK_PARTS = ['daktari.kate', 'gmail.com'];
+function feedbackAddress() { return FEEDBACK_PARTS[0] && FEEDBACK_PARTS[1] ? FEEDBACK_PARTS.join('@') : ''; }
+function openMail(url) { location.href = url; }   // separate function so tests can intercept it
+function sendFeedback() {
+  const status = document.getElementById('feedback-status');
+  const to = feedbackAddress();
+  if (!to) { status.textContent = 'Feedback isn\u2019t set up yet.'; return; }
+  const note = document.getElementById('feedback-text').value.trim();
+  // Attached facts are deliberately limited to app version, week and phase \u2014 no health data.
+  const info = 'Rehab Champ ' + APP_VERSION + ' \u00B7 Week ' + weekPostOp() + ' \u00B7 Phase ' + currentPhaseNum();
+  const body = (note ? note + '\n\n' : '') + '---\n' + info;
+  openMail('mailto:' + to + '?subject=' + encodeURIComponent('Rehab Champ feedback')
+    + '&body=' + encodeURIComponent(body));
+  status.textContent = '';
+  // If Mail took over, the page is hidden. If it's still showing, Mail probably isn't set up.
+  setTimeout(() => {
+    if (!document.hidden) status.textContent = 'Mail didn\u2019t open? You can send your note to ' + to + ' instead.';
+  }, 1500);
+}
+
+// ---------- Backup & restore ----------
+function collectData() {
+  const data = {};
+  Object.keys(localStorage).filter(k => k.startsWith('rc_')).forEach(k => { data[k] = localStorage.getItem(k); });
+  return { app: 'rehab-champ', version: APP_VERSION, exported: new Date().toISOString(), data };
+}
+async function exportData() {
+  const name = 'rehab-champ-backup-' + todayKey() + '.json';
+  const file = new File([JSON.stringify(collectData(), null, 1)], name, { type: 'application/json' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Rehab Champ backup' });   // iOS share sheet
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file); a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    }
+    store.set('lastBackup', todayKey());
+    renderInputs();
+  } catch (e) {
+    if (e.name !== 'AbortError') alert('Backup failed: ' + e.message);   // AbortError = she closed the share sheet
+  }
+}
+function importData(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const obj = JSON.parse(r.result);
+      if (obj.app !== 'rehab-champ' || !obj.data) throw new Error('this is not a Rehab Champ backup');
+      const n = Object.keys(obj.data).length;
+      if (!confirm('Replace everything on this phone with this backup (' + n + ' records, saved ' + String(obj.exported).slice(0, 10) + ')?')) return;
+      Object.keys(localStorage).filter(k => k.startsWith('rc_')).forEach(k => localStorage.removeItem(k));
+      Object.entries(obj.data).forEach(([k, v]) => { if (k.startsWith('rc_') && typeof v === 'string') localStorage.setItem(k, v); });
+      store.set('onboarded', true);
+      ensureSports();
+      showScreen('today');
+      render();
+    } catch (e) { alert('Could not restore: ' + e.message); }
+  };
+  r.readAsText(file);
+  document.getElementById('restore-file').value = '';
+}
+
 function showScreen(name) {
+  document.querySelector('nav').style.display = name === 'welcome' ? 'none' : '';
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
@@ -1131,7 +1538,7 @@ function showScreen(name) {
   window.scrollTo(0, 0);
 }
 
-render();
+if (needsWelcome()) showScreen('welcome'); else { ensureSports(); render(); }
 
 // iOS keeps the app frozen in memory overnight; re-render whenever it wakes
 // so "today" is always actually today.
