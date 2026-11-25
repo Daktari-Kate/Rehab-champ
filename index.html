@@ -309,6 +309,7 @@
     </div>
     <p class="faint">All data is stored only on this device. Nothing is sent anywhere.</p>
     <p class="faint" id="app-version" style="margin-top:6px;"></p>
+    <p class="faint" style="margin-top:6px;">© 2026 Dr Kate Taylor. All rights reserved.</p>
   </div>
   <div class="card">
     <h2>Your data</h2>
@@ -395,7 +396,7 @@
 </nav>
 
 <script>
-const APP_VERSION = '1.14 — 25 Nov 2026';
+const APP_VERSION = '1.16 — 25 Nov 2026';
 
 // ---------- Storage helpers (localStorage for now; IndexedDB upgrade planned) ----------
 const store = {
@@ -756,7 +757,7 @@ function renderSports() {
   if (!getSports().length) card.insertAdjacentHTML('beforeend', '<p class="faint" style="margin-bottom:8px;">No goal sports yet.</p>');
   const add = document.createElement('div');
   add.style.cssText = 'display:flex; gap:8px; margin-top:10px;';
-  add.innerHTML = '<input type="text" id="sport-input" placeholder="e.g. Taekwondo, hiking, netball" maxlength="30" style="flex:1; min-width:0;">'
+  add.innerHTML = '<input type="text" id="sport-input" placeholder="e.g. hiking, netball" maxlength="30" style="flex:1; min-width:0;">'
     + '<button class="btn small" style="margin:0; flex-shrink:0;" onclick="addSport()">Add</button>';
   card.appendChild(add);
   box.appendChild(card);
