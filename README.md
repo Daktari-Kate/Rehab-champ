@@ -6,6 +6,7 @@ A private companion app for recovering from an Achilles tendon rupture. It tells
 
 <!-- Edit this file on github.com and drag Rehab-Champ-intro-for-GitHub.mp4 here to embed the intro video. -->
 
+
 **Open the app:** https://daktari-kate.github.io/rehab-champ/
 
 ## What it does
