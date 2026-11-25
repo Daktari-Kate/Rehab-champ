@@ -395,7 +395,7 @@
 </nav>
 
 <script>
-const APP_VERSION = '1.13 — 25 Nov 2026';
+const APP_VERSION = '1.14 — 25 Nov 2026';
 
 // ---------- Storage helpers (localStorage for now; IndexedDB upgrade planned) ----------
 const store = {
@@ -625,11 +625,16 @@ const PROGRAM_TEMPLATE = [
     goals: 'Single-leg strength, then plyometrics, then running. Return-to-run is a criteria gate, not a date: ~10 full-range single-leg heel raises + good single-leg squat control.',
     exit: ['Strength >70–80% of {good} leg', 'Running 20–30 min comfortably', 'Controlled jumping and landing'],
     sessions: [
-      { id: 'p4-gym', icon: '🏋️', name: 'Gym — heavy calf & leg strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+      { id: 'p4-daily', icon: '🦶', name: 'Daily — calf, leg & foot strength', slot: 'anytime', freq: 'daily', perWeek: 7, items: [
         { id: 'slheel',  name: 'Single-leg heel raise progression ({injured})', dose: '4 × 8–12', load: 'bw+' },
         { id: 'rmatch',  name: '{Good} leg: match all single-leg work', dose: 'same sets' },
-        { id: 'soleus',  name: 'Seated soleus raises, loaded', dose: '4 × 12', load: 'kg' },
         { id: 'split',   name: 'Split squats', dose: '3 × 10', load: 'bw+' },
+        { id: 'step',    name: 'Step-ups', dose: '3 × 10' },
+        { id: 'short',   name: 'Short-foot exercise (arch doming)', dose: '3 × 10 × 5s hold' },
+        { id: 'toeyoga', name: 'Toe yoga: big-toe lifts', dose: '3 × 10' },
+      ]},
+      { id: 'p4-gym', icon: '🏋️', name: 'Gym — heavy calf & leg strength (both legs)', slot: 'anytime', freq: '3×/week', perWeek: 3, items: [
+        { id: 'soleus',  name: 'Seated soleus raises, loaded', dose: '4 × 12', load: 'kg' },
         { id: 'rdl',     name: 'Romanian deadlifts', dose: '3 × 10', load: 'kg' },
         { id: 'upper',   name: 'Upper body block', dose: '20 min' },
       ]},
@@ -694,7 +699,17 @@ function buildProgram() {
 }
 // Existing users predate "goal sports": give them Taekwondo so nothing changes for them.
 // (New users get an empty list from the welcome screen.)
+const MOVED_LOADS = { 'p4-gym.slheel': 'p4-daily.slheel', 'p4-gym.split': 'p4-daily.split' };
+function migrateLoads() {
+  const loads = store.get('loads', {});
+  let changed = false;
+  Object.entries(MOVED_LOADS).forEach(([from, to]) => {
+    if (loads[from] != null && loads[to] == null) { loads[to] = loads[from]; changed = true; }
+  });
+  if (changed) store.set('loads', loads);
+}
 function ensureSports() {
+  migrateLoads();
   if (store.get('sports', null) === null) store.set('sports', [{ id: 'taekwondo', name: 'Taekwondo', preset: 'tkd' }]);
   buildProgram();
 }
